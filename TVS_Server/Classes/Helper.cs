@@ -14,7 +14,6 @@ using System.Threading.Tasks;
 namespace TVS_Server {
     class Helper {
 
-
         public static double ConvertToUnixTimestamp(DateTime date) {
             DateTime origin = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
             TimeSpan diff = date.ToUniversalTime() - origin;
@@ -121,6 +120,10 @@ namespace TVS_Server {
                 Source = Regex.Replace(Source, Pattern, Replacement, RegexOptions.IgnoreCase);
             return Source;
         }
+
+    }
+
+    public class PrivateData : System.Attribute {
 
     }
 

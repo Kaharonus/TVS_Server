@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using System.IO;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
+using System.Timers;
 
 namespace TVS_Server
 {
@@ -18,13 +19,13 @@ namespace TVS_Server
             Series, Episodes, Actors, Posters, All
         }
         #endregion
+
         private static Dictionary<int, Database> Data { get; set; } = new Dictionary<int, Database>();
 
         public Series Series { get; set; }
         public Dictionary<int, Episode> Episodes { get; set; } = new Dictionary<int, Episode>();
         public Dictionary<int, Actor> Actors { get; set; } = new Dictionary<int, Actor>();
         public Dictionary<int, Poster> Posters { get; set; } = new Dictionary<int, Poster>();
-
 
         #region Get lists
 
@@ -128,7 +129,7 @@ namespace TVS_Server
 
         #endregion
 
-        #region Removing items
+        #region Remove items
 
         public static void RemoveEpisode(int seriesId, int episodeId) {
             if (Data.ContainsKey(seriesId) && Data[seriesId].Episodes.ContainsKey(episodeId)) {
@@ -180,6 +181,7 @@ namespace TVS_Server
                     }
                 }
             }
+            StartBackgroundUpdate();
         });
 
         /// <summary>
@@ -280,6 +282,10 @@ namespace TVS_Server
             }
         });
 
+        /// <summary>
+        /// Loads IDs of all TV Shows in database.
+        /// </summary>
+        /// <returns></returns>
         private static async Task<Dictionary<int, string>> LoadIDs() {
             string file = DatabasePath + "Base.TVSData";
             var data = ReadFile(file);
@@ -289,6 +295,9 @@ namespace TVS_Server
             return new Dictionary<int, string>();
         }
 
+        /// <summary>
+        /// Saves IDs of TV Shows and their names to a seperate file for better loading and faster orientation when debugging
+        /// </summary>
         private static async Task SaveIDs(Dictionary<int, string> data) {
             string file = DatabasePath + "Base.TVSData";
             string json = JsonConvert.SerializeObject(data);
@@ -312,6 +321,11 @@ namespace TVS_Server
 
         #region Support methods
 
+        /// <summary>
+        /// Returns path to library on whatever platform
+        /// TODO: Create path for OSX
+        /// </summary>
+        /// <returns></returns>
         private static string GetPath() {
             string path = "";
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
@@ -328,6 +342,9 @@ namespace TVS_Server
             return path;
         }
 
+        /// <summary>
+        /// Reads specified file, returns it as JObject for further parsing, takes care of backup file recovery
+        /// </summary>
         private static JObject ReadFile(string file) {
             if (File.Exists(file)) {
                 string json = File.ReadAllText(file);
@@ -345,6 +362,24 @@ namespace TVS_Server
                 }
             }
             return new JObject();
+        }
+
+        #endregion
+
+        #region DatabaseUpdater
+
+        private static void StartBackgroundUpdate() {
+            CheckForUpdates();
+            Timer timer = new Timer(1800000);
+            timer.Elapsed += async (s, ev) => await CheckForUpdates();
+            timer.Start();
+        }
+
+        private static async Task CheckForUpdates() {
+            if (Settings.DatabaseUpdateTime.AddDays(1) < DateTime.Now) {
+                var ids = await Series.GetUpdates(Settings.DatabaseUpdateTime);
+
+            }
         }
 
         #endregion

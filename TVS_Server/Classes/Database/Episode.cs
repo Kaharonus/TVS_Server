@@ -29,6 +29,9 @@ namespace TVS_Server {
         public double SiteRating { get; set; }
         public int? SiteRatingCount { get; set; }
 
+        [PrivateData]
+        public bool FullInfo { get; set; } = false;
+
         /// <summary>
         /// Requests basic information about all episodes from TVDb API
         /// </summary>

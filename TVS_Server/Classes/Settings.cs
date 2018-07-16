@@ -1,4 +1,6 @@
 ﻿using Avalonia.Media;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -9,8 +11,6 @@ using System.Threading;
 namespace TVS_Server
 {
     static class Settings {
-        private static int _securityLevel = 1;
-        private static int _loggingLevel = 1;
         private static string _token;
         private static string _libraryLocation;
         private static string _downloadLocation;
@@ -18,19 +18,9 @@ namespace TVS_Server
         private static string _scanLocation2;
         private static string _scanLocation3;
         private static DateTime _tokenTimestamp;
+        private static DateTime _databaseUpdateTime;
+
         private static bool _setupComplete = false;
-
-        /// <summary>
-        /// Security level of application from 0 (least secure) to 2 (most secure)
-        /// Right now main difference is request MAC checking. 0 = no checks, 1 = every +- 10 minutes, 2 = every time
-        /// </summary>
-        public static int SecurityLevel { get { return _securityLevel; } set { _securityLevel = value; SaveSettings(); } }
-
-        /// <summary>
-        /// How much info is logged to console
-        /// 0 = Only basic logs (servers starts, closes, exceptions), 1 = Normal info also tells you about who requested what, 2 = EVERYTHING I CAN THINK OF 
-        /// </summary>
-        public static int LoggingLevel { get { return _loggingLevel; } set { _loggingLevel = value; SaveSettings(); } }
 
         /// <summary>
         /// Token for logging in into TheTVDB API
@@ -41,6 +31,11 @@ namespace TVS_Server
         /// Date time that stores time when token was last retrieved
         /// </summary>
         public static DateTime TokenTimestamp { get => _tokenTimestamp; set { _tokenTimestamp = value; SaveSettings(); } }
+
+        /// <summary>
+        /// Date time that stores time when was database updated for the last time
+        /// </summary>
+        public static DateTime DatabaseUpdateTime { get => _databaseUpdateTime; set { _databaseUpdateTime = value; SaveSettings(); } }
 
         /// <summary>
         /// Indicates if user has already passed the entire setup process
@@ -74,20 +69,19 @@ namespace TVS_Server
 
 
 
-        public static void SaveSettings() { }
+
+
+
         /// <summary>
         /// Saves Settings. Is called automatically whenever property value is changed
         /// </summary>
-        /*public static void SaveSettings() {
+        public static void SaveSettings() {
             Type type = typeof(Settings);
-            string filename = DatabaseFiles.Database + "Settings.tvsps";
-            if (!Directory.Exists(DatabaseFiles.Database)) {
-                Directory.CreateDirectory(DatabaseFiles.Database);
-            }
+            string filename = Database.DatabasePath + "Settings.TVSData";
             if (!File.Exists(filename)) {
                 File.Create(filename).Dispose();
             }
-            do {
+            while(true) {
                 try {
                     FieldInfo[] properties = type.GetFields(BindingFlags.Static | BindingFlags.NonPublic);
                     object[,] a = new object[properties.Length, 2];
@@ -103,26 +97,21 @@ namespace TVS_Server
                     sw.Close();
                     return;
                 } catch (IOException e) {
-                    if (LoggingLevel == 2) {
-                        ConsoleLog.WriteLine(e.Message, Brushes.Red);
-                    }
                     Thread.Sleep(15);
                 }
-            } while (true);
+            }
         }
+
         /// <summary>
         /// Loads settings with default value if new settings has been added. In case of enums edit code - might get "crashy" if you dont
         /// </summary>
-        public static void Load() {
+        public static void LoadSettings() {
             Type type = typeof(Settings);
-            string filename = DatabaseFiles.Database + "Settings.tvsps";
-            if (!Directory.Exists(DatabaseFiles.Database)) {
-                Directory.CreateDirectory(DatabaseFiles.Database);
-            }
+            string filename = Database.DatabasePath + "Settings.TVSData";
             if (!File.Exists(filename)) {
                 File.Create(filename).Dispose();
             }
-            do {
+            while (true) { 
                 try {
                     FieldInfo[] fields = type.GetFields(BindingFlags.Static | BindingFlags.NonPublic);
                     object[,] a;
@@ -147,12 +136,9 @@ namespace TVS_Server
                     }
                     return;
                 } catch (IOException e) {
-                    if (LoggingLevel == 2) {
-                        Log.Write(e.Message, Brushes.Red);
-                    }
                     Thread.Sleep(15);
                 }
-            } while (true);
+            }
         }
 
         public static object GetDefault(Type type) {
@@ -160,7 +146,7 @@ namespace TVS_Server
                 return Activator.CreateInstance(type);
             }
             return null;
-        }*/
+        }
 
     }
 }
