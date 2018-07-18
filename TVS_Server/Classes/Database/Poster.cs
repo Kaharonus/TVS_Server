@@ -40,7 +40,7 @@ namespace TVS_Server {
                         return list.OrderByDescending(y => y.ratingsInfo.Count).ToList();
                     }
                 } catch (WebException e) {
-                    return null;
+                    return new List<Poster>();
                 }
             });
            
@@ -66,7 +66,7 @@ namespace TVS_Server {
                         return list.OrderByDescending(y => y.ratingsInfo.Count).ToList();
                     }
                 } catch (WebException e) {
-                    return null;
+                    return new List<Poster>();
                 }
             });
         }
@@ -91,7 +91,7 @@ namespace TVS_Server {
                         return sorted[0];
                     }
                 } catch (WebException e) {
-                    return null;
+                    return new Poster();
                 }
             });
         }

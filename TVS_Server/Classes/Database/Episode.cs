@@ -57,7 +57,7 @@ namespace TVS_Server {
                             var resp = (HttpWebResponse)ex.Response;
                             if (resp.StatusCode == HttpStatusCode.NotFound) { return list; }
                         } else {
-                            return null;
+                            return new List<Episode>();
                         }
                     }
                 }
@@ -79,7 +79,7 @@ namespace TVS_Server {
                         return jObject["data"].ToObject<Episode>();
                     }
                 } catch (WebException e) {
-                    return null;
+                    return new Episode();
                 }
             });
         }

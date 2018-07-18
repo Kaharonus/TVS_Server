@@ -8,6 +8,7 @@ using System.IO;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
 using System.Timers;
+using System.Diagnostics;
 
 namespace TVS_Server
 {
@@ -247,11 +248,11 @@ namespace TVS_Server
         public static async Task CreateDatabase(int seriesId) => await Task.Run(async () => {
             if (!Data.ContainsKey(seriesId)) {
                 List<Task> tasks = new List<Task>() {
-                Series.GetSeries(seriesId),
-                Episode.GetEpisodes(seriesId),
-                Actor.GetActors(seriesId),
-                Poster.GetPosters(seriesId)
-            };
+                    Series.GetSeries(seriesId),
+                    Episode.GetEpisodes(seriesId),
+                    Actor.GetActors(seriesId),
+                    Poster.GetPosters(seriesId)
+                };
                 await Task.WhenAll(tasks);
                 Database db = new Database {
                     Series = ((Task<Series>)tasks[0]).Result,
@@ -378,11 +379,77 @@ namespace TVS_Server
         private static async Task CheckForUpdates() {
             if (Settings.DatabaseUpdateTime.AddDays(1) < DateTime.Now) {
                 var ids = await Series.GetUpdates(Settings.DatabaseUpdateTime);
+                ids = ids.Where(x => Data.Keys.Contains(x)).ToList();
+                var action = new BackgroundAction("Updating database", ids.Count);
+                foreach (var seriesId in ids) {
+                    action.Name = "Updating database - " + Data[seriesId].Series.SeriesName;
+                    List<Task> tasks = new List<Task>() {
+                        Series.GetSeries(seriesId),
+                        Episode.GetEpisodes(seriesId),
+                        Actor.GetActors(seriesId),
+                        Poster.GetPosters(seriesId)
+                    };
+                    await Task.WhenAll(tasks);
+                    UpdateSeries(seriesId, ((Task<Series>)tasks[0]).Result);
+                    UpdateEpisodes(seriesId, ((Task<List<Episode>>)tasks[1]).Result);
+                    UpdateActors(seriesId, ((Task<List<Actor>>)tasks[2]).Result);
+                    UpdatePosters(seriesId, ((Task<List<Poster>>)tasks[3]).Result);
+                    action.Value++;
+                }
+                Settings.DatabaseUpdateTime = DateTime.Now;
+            }
+        }
 
+        private static void UpdateSeries(int seriesId, Series newData) {
+            if (Data.ContainsKey(seriesId)) {
+                newData.UpdateObject(Data[seriesId].Series);
+                Data[seriesId].Series = newData;
+             }
+        }
+
+        private static void UpdateEpisodes(int seriesId, List<Episode> newData) {
+            if (Data.ContainsKey(seriesId)) {
+                for (int i = 0; i < newData.Count; i++) {
+                    if (Data.ContainsKey(newData[i].Id)) {
+                        newData[i].UpdateObject(Data[seriesId].Episodes[newData[i].Id]);
+                    }
+                }
+                SetEpisodes(seriesId, newData);
+            }
+        }
+
+        private static void UpdateActors(int seriesId, List<Actor> newData) {
+            if (Data.ContainsKey(seriesId)) {
+                for (int i = 0; i < newData.Count; i++) {
+                    if (Data.ContainsKey(newData[i].Id)) {
+                        newData[i].UpdateObject(Data[seriesId].Actors[newData[i].Id]);
+                    }
+                }
+                SetActors(seriesId, newData);
+            }
+        }
+
+        private static void UpdatePosters(int seriesId, List<Poster> newData) {
+            if (Data.ContainsKey(seriesId)) {
+                for (int i = 0; i < newData.Count; i++) {
+                    if (Data.ContainsKey(newData[i].Id)) {
+                        newData[i].UpdateObject(Data[seriesId].Posters[newData[i].Id]);
+                    }
+                }
+                SetPosters(seriesId, newData);
             }
         }
 
         #endregion
 
+
+        /*private static void SerachByName(string name) {
+            name = name.ToLower();
+            HashSet<Episode> test = new HashSet<Episode>();
+            foreach (var item in Data) {
+                test.Union(item.Value.Episodes.Values);
+            }
+            var ep = test.Where(x => x.EpisodeName.Contains(name)).ToList();
+        }*/
     }
 }

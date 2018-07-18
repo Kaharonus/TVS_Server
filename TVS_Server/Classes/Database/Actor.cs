@@ -37,7 +37,7 @@ namespace TVS_Server
                         return list.OrderBy(x => x.SortOrder).ToList<Actor>();
                     }
                 } catch (WebException e) {
-                    return null;
+                    return new List<Actor>();
                 }
             });
           

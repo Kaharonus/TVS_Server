@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Linq;
 using Avalonia;
 using Avalonia.Logging.Serilog;
+using System.IO;
 
 namespace TVS_Server
 {
@@ -14,7 +15,7 @@ namespace TVS_Server
 
         static void Main(string[] args) {
             ParseParameters(args);
-            LoadApplication();
+            LoadApplication().Wait();
             StartApplication();
             Console.ReadLine();
         }
@@ -23,8 +24,10 @@ namespace TVS_Server
 
         }
 
-        private static void LoadApplication() {
+        private static async Task LoadApplication() {
+            Settings.LoadSettings();
             if (Settings.DatabaseUpdateTime == default(DateTime)) Settings.DatabaseUpdateTime = DateTime.Now;
+            await Database.LoadDatabase();
         }
 
         private static void StartApplication() {
@@ -35,10 +38,10 @@ namespace TVS_Server
             }
         }
 
+
         private static async void TestMethod() {
-            Settings.LoadSettings();
             Log.Write(DateTime.Now.ToShortDateString()+ ", " + DateTime.Now.ToLongTimeString()+", " + Helper.GetMyIP());
-            await Database.LoadDatabase();
+            //var ids = File.ReadAllLines(@"C:\Users\tomas\Desktop\test.txt");
             //await Database.RemoveDatabase(121361);
             //await Database.CreateDatabase(121361);
         }

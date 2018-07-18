@@ -10,9 +10,17 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Reflection;
 
 namespace TVS_Server {
     class Helper {
+
+        public static object GetDefaultValue(Type t) {
+            if (t.IsValueType) {
+                return Activator.CreateInstance(t);
+            }
+            return null;
+        }
 
         public static double ConvertToUnixTimestamp(DateTime date) {
             DateTime origin = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
@@ -86,6 +94,20 @@ namespace TVS_Server {
         }
     }
     public static class Extentions {
+
+        /// <summary>
+        /// Updates all null or default value properties from old with data from new
+        /// </summary>
+        public static void UpdateObject(this object oldObj, object newObj) {
+            if (oldObj.GetType() == newObj.GetType()) {
+                var properties = oldObj.GetType().GetProperties();
+                foreach (var property in properties) {
+                    if (property.GetValue(oldObj) == Helper.GetDefaultValue(property.GetType()) || (property.GetType() == typeof(string) && String.IsNullOrEmpty((string)property.GetValue(oldObj)))) {
+                        property.SetValue(oldObj, property.GetValue(newObj));
+                    }
+                }
+            }
+        }
 
         public async static Task WaitAll(this IEnumerable<Task> tasks) {
             await Task.Run(() => Task.WaitAll(tasks.ToArray()));

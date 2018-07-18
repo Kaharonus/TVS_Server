@@ -43,7 +43,7 @@ namespace TVS_Server {
                 try {
                     response = (HttpWebResponse)wr.GetResponse();
                 } catch (WebException e) {
-                    return null;
+                    return new List<Series>();
                 }
                 Stream dataStream = response.GetResponseStream();
                 StreamReader reader = new StreamReader(dataStream);
@@ -51,7 +51,7 @@ namespace TVS_Server {
                 JArray array;
                 try {
                     array = JArray.Parse(responseFromServer);
-                } catch (Exception e) { return null; }
+                } catch (Exception e) { return new List<Series>(); }
                 foreach (JToken jt in (JToken)array) {
                     if (!String.IsNullOrEmpty(jt["show"]["externals"]["thetvdb"].ToString()) && !String.IsNullOrEmpty(jt["show"]["name"].ToString())) {
                         Series s = new Series();
@@ -80,7 +80,7 @@ namespace TVS_Server {
                 try {
                     response = (HttpWebResponse)wr.GetResponse();
                 } catch (WebException e) {
-                    return null;
+                    return new Series();
                 }
                 Stream dataStream = response.GetResponseStream();
                 StreamReader reader = new StreamReader(dataStream);
@@ -89,7 +89,7 @@ namespace TVS_Server {
                 try {
                     jObject = JObject.Parse(responseFromServer);
                 } catch (Exception e) {
-                    return null;
+                    return new Series();
                 }
                 if (!String.IsNullOrEmpty(jObject["externals"]["thetvdb"].ToString()) && !String.IsNullOrEmpty(jObject["name"].ToString())) {
                     Series s = new Series();
@@ -100,7 +100,7 @@ namespace TVS_Server {
                     s.TvmazeId = Int32.Parse(jObject["id"].ToString());
                     return s;
                 }
-                return null;
+                return new Series();
             });        
         }
 
@@ -121,7 +121,7 @@ namespace TVS_Server {
                         return series;
                     }
                 } catch (Exception) {
-                    return null;
+                    return new Series();
                 }
             });
         }
@@ -175,7 +175,7 @@ namespace TVS_Server {
         public static async Task<List<int>> GetUpdates(DateTime from) {
             return await Task.Run(() => {
                 if (from > DateTime.Now) {
-                    return null;
+                    return new List<int>();
                 }
                 HashSet<int> ids = new HashSet<int>();
                 List<Tuple<double, double>> timestamps = GenerateTimeStamps(from);
@@ -190,7 +190,7 @@ namespace TVS_Server {
                             }
                         }
                     } catch (WebException e) {
-                        return null;
+                        return new List<int>();
                     }
                 }
                 return ids.ToList();
