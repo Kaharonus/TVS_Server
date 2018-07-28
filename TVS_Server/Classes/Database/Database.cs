@@ -17,7 +17,7 @@ namespace TVS_Server
         #region static variables
         public static string DatabasePath = GetPath();
         public enum SaveType {
-            Series, Episodes, Actors, Posters, All
+            Series, Episodes, Actors, Posters, Files, All
         }
         #endregion
 
@@ -27,6 +27,7 @@ namespace TVS_Server
         public Dictionary<int, Episode> Episodes { get; set; } = new Dictionary<int, Episode>();
         public Dictionary<int, Actor> Actors { get; set; } = new Dictionary<int, Actor>();
         public Dictionary<int, Poster> Posters { get; set; } = new Dictionary<int, Poster>();
+        public Dictionary<int, DatabaseFile> Files { get; set; } = new Dictionary<int, DatabaseFile>();
 
         #region Get lists
 
@@ -38,6 +39,17 @@ namespace TVS_Server
 
         public static List<Poster> GetPosters(int seriesId) => Data.ContainsKey(seriesId) ? Data[seriesId].Posters.Values.ToList() : new List<Poster>();
 
+        public static List<DatabaseFile> GetFiles(int seriesId) => Data.ContainsKey(seriesId) ? Data[seriesId].Files.Values.ToList() : new List<DatabaseFile>();
+
+        public static List<DatabaseFile> GetFiles(int seriesId, int episodeId) {
+            List<DatabaseFile> files = new List<DatabaseFile>();
+            if (Data.ContainsKey(seriesId)) {
+                files.AddRange(Data[seriesId].Files.Where(x => x.Value.EpisodeId == episodeId).Select(x => x.Value).ToList());
+            }
+            return files;
+        }
+
+
         #endregion
 
         #region Get items
@@ -47,6 +59,7 @@ namespace TVS_Server
         }
 
         public static Episode GetEpisode(int seriesId, int episodeId) {
+            FillData(seriesId, episodeId).Wait();
             return Data.ContainsKey(seriesId) && Data[seriesId].Episodes.ContainsKey(episodeId) ? Data[seriesId].Episodes[episodeId] : new Episode();
         }
 
@@ -57,6 +70,11 @@ namespace TVS_Server
         public static Poster GetPoster(int seriesId, int posterId) {
             return Data.ContainsKey(seriesId) && Data[seriesId].Posters.ContainsKey(posterId) ? Data[seriesId].Posters[posterId] : new Poster();
         }
+
+        public static DatabaseFile GetFile(int seriesId, int fileId) {
+            return Data.ContainsKey(seriesId) && Data[seriesId].Files.ContainsKey(fileId) ? Data[seriesId].Files[fileId] : new DatabaseFile();
+        }
+
 
         #endregion
 
@@ -125,7 +143,17 @@ namespace TVS_Server
                 }
                 SaveDatabase(seriesId, SaveType.Posters);
             }
+        }
 
+        public static void SetFile(int seriesId, int fileId, DatabaseFile file) {
+            if (Data.ContainsKey(seriesId)) {
+                if (Data[seriesId].Files.ContainsKey(fileId)) {
+                    Data[seriesId].Files[fileId] = file;
+                } else {
+                    Data[seriesId].Files.Add(file.Id, file);
+                }
+                SaveDatabase(seriesId, SaveType.Files);
+            }
         }
 
         #endregion
@@ -153,6 +181,13 @@ namespace TVS_Server
             }
         }
 
+        public static void RemoveFile(int seriesId, int fileId) {
+            if (Data.ContainsKey(seriesId) && Data[seriesId].Files.ContainsKey(fileId)) {
+                Data[seriesId].Posters.Remove(fileId);
+                SaveDatabase(seriesId, SaveType.Files);
+            }
+        }
+
         #endregion
 
         #region Database operations
@@ -170,12 +205,14 @@ namespace TVS_Server
                     var episodes = ReadFile(path + id + "\\Episodes.TVSData");
                     var actors = ReadFile(path + id + "\\Actors.TVSData");
                     var posters = ReadFile(path + id + "\\Posters.TVSData");
+                    var files = ReadFile(path + id + "\\Files.TVSData");
                     if (series != new JObject() && episodes != new JObject() && actors != new JObject() && posters != new JObject()) {
                         Database database = new Database();
                         database.Series = (Series)series.ToObject(typeof(Series));
                         database.Episodes = (Dictionary<int, Episode>)episodes.ToObject(typeof(Dictionary<int, Episode>));
                         database.Actors = (Dictionary<int, Actor>)actors.ToObject(typeof(Dictionary<int, Actor>));
                         database.Posters = (Dictionary<int, Poster>)posters.ToObject(typeof(Dictionary<int, Poster>));
+                        database.Files = (Dictionary<int, DatabaseFile>)files.ToObject(typeof(Dictionary<int, DatabaseFile>));
                         if (!Data.ContainsKey(id)) {
                             Data.Add(id, database);
                         }
@@ -215,11 +252,16 @@ namespace TVS_Server
                         obj = Data[seriesId].Posters;
                         file += "Posters.TVSData";
                         break;
+                    case SaveType.Files:
+                        obj = Data[seriesId].Files;
+                        file += "Files.TVSData";
+                        break;
                     case SaveType.All:
                         await SaveDatabase(seriesId, SaveType.Series);
                         await SaveDatabase(seriesId, SaveType.Episodes);
                         await SaveDatabase(seriesId, SaveType.Actors);
                         await SaveDatabase(seriesId, SaveType.Posters);
+                        await SaveDatabase(seriesId, SaveType.Files);
                         return;
                 }
                 string json = JsonConvert.SerializeObject(obj);
@@ -245,7 +287,7 @@ namespace TVS_Server
         /// </summary>
         /// <param name="seriesId">TVDb ID of said TV Show</param>
         /// <returns></returns>
-        public static async Task CreateDatabase(int seriesId) => await Task.Run(async () => {
+        public static async Task CreateDatabase(int seriesId, string databasePath = null) => await Task.Run(async () => {
             if (!Data.ContainsKey(seriesId)) {
                 List<Task> tasks = new List<Task>() {
                     Series.GetSeries(seriesId),
@@ -260,6 +302,11 @@ namespace TVS_Server
                     Actors = ((Task<List<Actor>>)tasks[2]).Result.ToDictionary(x => x.Id, x => x),
                     Posters = ((Task<List<Poster>>)tasks[3]).Result.ToDictionary(x => x.Id, x => x)
                 };
+                if (!String.IsNullOrEmpty(databasePath)) {
+                    db.Series.LibraryPath = databasePath;
+                } else {
+                    db.Series.LibraryPath = Settings.LibraryLocation + "\\" + db.Series.SeriesName;
+                }
                 Data.Add(seriesId, db);
                 await SaveDatabase(seriesId, SaveType.All);
                 var ids = await LoadIDs();
@@ -398,6 +445,7 @@ namespace TVS_Server
                 }
                 Settings.DatabaseUpdateTime = DateTime.Now;
             }
+            await CheckAllSeries();
         }
 
         private static void UpdateSeries(int seriesId, Series newData) {
@@ -442,7 +490,42 @@ namespace TVS_Server
 
         #endregion
 
+        #region Episode data fill-in
 
+        private static List<(int serisId, Episode ep)> fillEpisodes = new List<(int, Episode)>();
+
+        private static async Task CheckAllSeries() {
+            while (fillEpisodes.Count > 0) {
+                await Task.Delay(10_000);
+            }
+            foreach (var series in GetSeries()) {
+                Data[series.Id].Episodes.Values.Where(x => !x.FullInfo).ToList().ForEach(x => fillEpisodes.Add((series.Id, x)));             
+            }
+            if (fillEpisodes.Count > 0) {
+                BackgroundAction action = new BackgroundAction("Filling episode data", fillEpisodes.Count);
+                foreach (var item in fillEpisodes) {
+                    action.Name = "Filling episode data - " + item.ep.EpisodeName;
+                    await FillData(item.serisId, item.ep.Id);
+                    action.Value++;
+                }
+                fillEpisodes.Clear();
+            }
+
+        }
+
+        private static async Task FillData(int seriesId, int episodeId) {
+            if (Data.ContainsKey(seriesId) && Data[seriesId].Episodes.ContainsKey(episodeId) && !Data[seriesId].Episodes[episodeId].FullInfo) {
+                var ep = await Episode.GetEpisode(episodeId);
+                ep.UpdateObject(Data[seriesId].Episodes[episodeId]);
+                ep.FullInfo = true;
+                SetEpisode(seriesId, episodeId, ep);
+            }
+        }
+
+
+
+
+        #endregion
         /*private static void SerachByName(string name) {
             name = name.ToLower();
             HashSet<Episode> test = new HashSet<Episode>();

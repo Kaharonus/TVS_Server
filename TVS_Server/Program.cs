@@ -41,9 +41,16 @@ namespace TVS_Server
 
         private static async void TestMethod() {
             Log.Write(DateTime.Now.ToShortDateString()+ ", " + DateTime.Now.ToLongTimeString()+", " + Helper.GetMyIP());
-            //var ids = File.ReadAllLines(@"C:\Users\tomas\Desktop\test.txt");
-            //await Database.RemoveDatabase(121361);
-            //await Database.CreateDatabase(121361);
+            Renamer.RunRenamer();
+
+/*            while (true) {
+                var list = BackgroundAction.GetActions();
+                foreach (var action in list) {
+                    Log.Write(action.Name + ", " + action.Value + "/" + action.MaxValue + ", " + action.TimeRemaining);
+                }
+                await Task.Delay(1000);
+            }*/
+
         }
 
 

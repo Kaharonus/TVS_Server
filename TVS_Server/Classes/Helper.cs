@@ -102,7 +102,7 @@ namespace TVS_Server {
             if (oldObj.GetType() == newObj.GetType()) {
                 var properties = oldObj.GetType().GetProperties();
                 foreach (var property in properties) {
-                    if (property.GetValue(oldObj) == Helper.GetDefaultValue(property.GetType()) || (property.GetType() == typeof(string) && String.IsNullOrEmpty((string)property.GetValue(oldObj)))) {
+                    if ((property.GetValue(oldObj) == Helper.GetDefaultValue(property.GetType()) || (property.GetType() == typeof(string) && String.IsNullOrEmpty((string)property.GetValue(oldObj)))) && property.Name != "FirstAired") {
                         property.SetValue(oldObj, property.GetValue(newObj));
                     }
                 }

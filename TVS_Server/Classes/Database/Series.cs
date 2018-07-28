@@ -28,6 +28,9 @@ namespace TVS_Server {
         public double SiteRating { get; set; }
         public int? SiteRatingCount { get; set; }
 
+        [PrivateData]
+        public string LibraryPath { get; set; }
+
         /// <summary>
         /// Searches TVMaze API for Series
         /// </summary>
