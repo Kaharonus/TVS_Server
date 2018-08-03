@@ -26,7 +26,7 @@ namespace TVS_Server
 
         private static async Task LoadApplication() {
             Settings.LoadSettings();
-            if (Settings.DatabaseUpdateTime == default(DateTime)) Settings.DatabaseUpdateTime = DateTime.Now;
+            if (Settings.DatabaseUpdateTime == default) Settings.DatabaseUpdateTime = DateTime.Now;
             await Database.LoadDatabase();
         }
 
@@ -41,6 +41,7 @@ namespace TVS_Server
 
         private static async void TestMethod() {
             Log.Write(DateTime.Now.ToShortDateString()+ ", " + DateTime.Now.ToLongTimeString()+", " + Helper.GetMyIP());
+            Settings.ScanLocation1 = @"D:\TVSTests\ImportFolder\";
             Renamer.RunRenamer();
 
 /*            while (true) {

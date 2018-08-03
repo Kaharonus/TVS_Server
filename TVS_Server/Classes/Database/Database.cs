@@ -22,12 +22,12 @@ namespace TVS_Server
         #endregion
 
         private static Dictionary<int, Database> Data { get; set; } = new Dictionary<int, Database>();
+        private static Dictionary<int, List<DatabaseFile>> Files = new Dictionary<int, List<DatabaseFile>>();
 
         public Series Series { get; set; }
         public Dictionary<int, Episode> Episodes { get; set; } = new Dictionary<int, Episode>();
         public Dictionary<int, Actor> Actors { get; set; } = new Dictionary<int, Actor>();
         public Dictionary<int, Poster> Posters { get; set; } = new Dictionary<int, Poster>();
-        public Dictionary<int, DatabaseFile> Files { get; set; } = new Dictionary<int, DatabaseFile>();
 
         #region Get lists
 
@@ -39,16 +39,9 @@ namespace TVS_Server
 
         public static List<Poster> GetPosters(int seriesId) => Data.ContainsKey(seriesId) ? Data[seriesId].Posters.Values.ToList() : new List<Poster>();
 
-        public static List<DatabaseFile> GetFiles(int seriesId) => Data.ContainsKey(seriesId) ? Data[seriesId].Files.Values.ToList() : new List<DatabaseFile>();
+        public static List<DatabaseFile> GetFiles(int episodeId) => Files.ContainsKey(episodeId) ? Files[episodeId] : new List<DatabaseFile>();
 
-        public static List<DatabaseFile> GetFiles(int seriesId, int episodeId) {
-            List<DatabaseFile> files = new List<DatabaseFile>();
-            if (Data.ContainsKey(seriesId)) {
-                files.AddRange(Data[seriesId].Files.Where(x => x.Value.EpisodeId == episodeId).Select(x => x.Value).ToList());
-            }
-            return files;
-        }
-
+        public static Dictionary<int, List<DatabaseFile>> GetFiles() => Files;
 
         #endregion
 
@@ -58,8 +51,10 @@ namespace TVS_Server
             return Data.ContainsKey(seriesId) ? Data[seriesId].Series : new Series();
         }
 
-        public static Episode GetEpisode(int seriesId, int episodeId) {
-            FillData(seriesId, episodeId).Wait();
+        public static Episode GetEpisode(int seriesId, int episodeId, bool fullInfo = false) {
+            if (fullInfo) {
+                FillData(seriesId, episodeId).Wait();
+            }
             return Data.ContainsKey(seriesId) && Data[seriesId].Episodes.ContainsKey(episodeId) ? Data[seriesId].Episodes[episodeId] : new Episode();
         }
 
@@ -71,8 +66,14 @@ namespace TVS_Server
             return Data.ContainsKey(seriesId) && Data[seriesId].Posters.ContainsKey(posterId) ? Data[seriesId].Posters[posterId] : new Poster();
         }
 
-        public static DatabaseFile GetFile(int seriesId, int fileId) {
-            return Data.ContainsKey(seriesId) && Data[seriesId].Files.ContainsKey(fileId) ? Data[seriesId].Files[fileId] : new DatabaseFile();
+        public static DatabaseFile GetFile(int episodeId, int fileId) {
+            if (Files.ContainsKey(episodeId)) {
+                var item = Files[episodeId].Where(x => x.Id == fileId).FirstOrDefault();
+                if (item != null) {
+                    return item;
+                }
+            }
+            return new DatabaseFile();
         }
 
 
@@ -99,6 +100,11 @@ namespace TVS_Server
                 Data[seriesId].Posters = posters.ToDictionary(x => x.Id, x => x);
                 SaveDatabase(seriesId, SaveType.Posters);
             }
+        }
+
+        public static void SetFiles(Dictionary<int,List<DatabaseFile>> files) {
+            Files = files.ToDictionary(x=>x.Key, x=>x.Value.ToList());
+            SaveDatabase(0, SaveType.Files);
         }
 
         #endregion
@@ -145,14 +151,16 @@ namespace TVS_Server
             }
         }
 
-        public static void SetFile(int seriesId, int fileId, DatabaseFile file) {
-            if (Data.ContainsKey(seriesId)) {
-                if (Data[seriesId].Files.ContainsKey(fileId)) {
-                    Data[seriesId].Files[fileId] = file;
+        public static void SetFile(int episodeId, int fileId, DatabaseFile file) {
+            if (Files.ContainsKey(episodeId)) {
+                var item = Files[episodeId].Where(x => x.Id == fileId).FirstOrDefault();
+                if (item != null) {
+                    Files[episodeId][Files[episodeId].IndexOf(item)] = file;
                 } else {
-                    Data[seriesId].Files.Add(file.Id, file);
+                    Files[episodeId].Add(file);
                 }
-                SaveDatabase(seriesId, SaveType.Files);
+               
+                SaveDatabase(0, SaveType.Files);
             }
         }
 
@@ -181,10 +189,13 @@ namespace TVS_Server
             }
         }
 
-        public static void RemoveFile(int seriesId, int fileId) {
-            if (Data.ContainsKey(seriesId) && Data[seriesId].Files.ContainsKey(fileId)) {
-                Data[seriesId].Posters.Remove(fileId);
-                SaveDatabase(seriesId, SaveType.Files);
+        public static void RemoveFile(int episodeId, int fileId) {
+            if (Files.ContainsKey(episodeId)) {
+                var item = Files[episodeId].Where(x => x.Id == fileId).FirstOrDefault();
+                if (item != null) {
+                    Files[episodeId].Remove(item);
+                }
+                SaveDatabase(0, SaveType.Files);
             }
         }
 
@@ -205,20 +216,20 @@ namespace TVS_Server
                     var episodes = ReadFile(path + id + "\\Episodes.TVSData");
                     var actors = ReadFile(path + id + "\\Actors.TVSData");
                     var posters = ReadFile(path + id + "\\Posters.TVSData");
-                    var files = ReadFile(path + id + "\\Files.TVSData");
                     if (series != new JObject() && episodes != new JObject() && actors != new JObject() && posters != new JObject()) {
                         Database database = new Database();
                         database.Series = (Series)series.ToObject(typeof(Series));
                         database.Episodes = (Dictionary<int, Episode>)episodes.ToObject(typeof(Dictionary<int, Episode>));
                         database.Actors = (Dictionary<int, Actor>)actors.ToObject(typeof(Dictionary<int, Actor>));
                         database.Posters = (Dictionary<int, Poster>)posters.ToObject(typeof(Dictionary<int, Poster>));
-                        database.Files = (Dictionary<int, DatabaseFile>)files.ToObject(typeof(Dictionary<int, DatabaseFile>));
                         if (!Data.ContainsKey(id)) {
                             Data.Add(id, database);
                         }
                     }
                 }
             }
+            var files = ReadFile(DatabasePath + "\\Files.TVSData");
+            Files = (Dictionary<int, List<DatabaseFile>>)files.ToObject(typeof(Dictionary<int, List<DatabaseFile>>));
             StartBackgroundUpdate();
         });
 
@@ -229,55 +240,54 @@ namespace TVS_Server
         /// <param name="type">Kind of file to be saved</param>
         /// <returns></returns>
         public static async Task SaveDatabase(int seriesId, SaveType type) => await Task.Run(async () => {
-            if (Data.ContainsKey(seriesId)) {
-                object obj = new object();
-                string file = DatabasePath + "Data\\" + seriesId + "\\";
-                if (!Directory.Exists(file)) {
-                    Directory.CreateDirectory(file);
-                }
-                switch (type) {
-                    case SaveType.Series:
-                        obj = Data[seriesId].Series;
-                        file += "Series.TVSData";
-                        break;
-                    case SaveType.Episodes:
-                        obj = Data[seriesId].Episodes;
-                        file += "Episodes.TVSData";
-                        break;
-                    case SaveType.Actors:
-                        obj = Data[seriesId].Actors;
-                        file += "Actors.TVSData";
-                        break;
-                    case SaveType.Posters:
-                        obj = Data[seriesId].Posters;
-                        file += "Posters.TVSData";
-                        break;
-                    case SaveType.Files:
-                        obj = Data[seriesId].Files;
-                        file += "Files.TVSData";
-                        break;
-                    case SaveType.All:
-                        await SaveDatabase(seriesId, SaveType.Series);
-                        await SaveDatabase(seriesId, SaveType.Episodes);
-                        await SaveDatabase(seriesId, SaveType.Actors);
-                        await SaveDatabase(seriesId, SaveType.Posters);
-                        await SaveDatabase(seriesId, SaveType.Files);
-                        return;
-                }
-                string json = JsonConvert.SerializeObject(obj);
-                while (true) { 
-                    try {
-                        if (File.Exists(file)) {
-                            if (File.Exists(file + "Backup")) {
-                                File.Delete(file + "Backup");
-                            }
-                            File.Move(file, file + "Backup");
+
+            object obj = new object();
+            string file = DatabasePath + "Data\\" + seriesId + "\\";
+            if (!Directory.Exists(file)) {
+                Directory.CreateDirectory(file);
+            }
+            switch (type) {
+                case SaveType.Series:
+                    obj = Data[seriesId].Series;
+                    file += "Series.TVSData";
+                    break;
+                case SaveType.Episodes:
+                    obj = Data[seriesId].Episodes;
+                    file += "Episodes.TVSData";
+                    break;
+                case SaveType.Actors:
+                    obj = Data[seriesId].Actors;
+                    file += "Actors.TVSData";
+                    break;
+                case SaveType.Posters:
+                    obj = Data[seriesId].Posters;
+                    file += "Posters.TVSData";
+                    break;
+                case SaveType.Files:
+                    obj = Files;
+                    file = DatabasePath + "Files.TVSData";
+                    break;
+                case SaveType.All:
+                    await SaveDatabase(seriesId, SaveType.Series);
+                    await SaveDatabase(seriesId, SaveType.Episodes);
+                    await SaveDatabase(seriesId, SaveType.Actors);
+                    await SaveDatabase(seriesId, SaveType.Posters);
+                    await SaveDatabase(0, SaveType.Files);
+                    return;
+            }
+            string json = JsonConvert.SerializeObject(obj);
+            while (true) {
+                try {
+                    if (File.Exists(file)) {
+                        if (File.Exists(file + "Backup")) {
+                            File.Delete(file + "Backup");
                         }
-                        File.WriteAllText(file, json);
-                        return;
-                    } catch (IOException e) {
-                        await Task.Delay(10);
+                        File.Move(file, file + "Backup");
                     }
+                    File.WriteAllText(file, json);
+                    return;
+                } catch (IOException e) {
+                    await Task.Delay(10);
                 }
             }
         });

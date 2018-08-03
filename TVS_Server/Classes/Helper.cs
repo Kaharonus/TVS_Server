@@ -11,9 +11,26 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Reflection;
+using System.IO;
 
 namespace TVS_Server {
     class Helper {
+
+        public static string GenerateName(int seriesId, int episodeId) {
+            var series = Database.GetSeries(seriesId);
+            var episode = Database.GetEpisode(seriesId, episodeId);
+            string name = "";
+            if (episode.AiredSeason < 10) {
+                name = episode.AiredEpisodeNumber < 10 ? series.SeriesName + " - S0" + episode.AiredSeason + "E0" + episode.AiredEpisodeNumber + " - " + episode.EpisodeName : name = series.SeriesName + " - S0" + episode.AiredSeason + "E" + episode.AiredEpisodeNumber + " - " + episode.EpisodeName;
+            } else if (episode.AiredSeason >= 10) {
+                name = episode.AiredEpisodeNumber < 10 ? series.SeriesName + " - S" + episode.AiredSeason + "E0" + episode.AiredEpisodeNumber + " - " + episode.EpisodeName : series.SeriesName + " - S" + episode.AiredSeason + "E" + episode.AiredEpisodeNumber + " - " + episode.EpisodeName;
+            }
+            string invalid = new string(Path.GetInvalidFileNameChars()) + new string(Path.GetInvalidPathChars());
+            foreach (char c in invalid) {
+                name = name.Replace(c.ToString(), "");
+            }
+            return name;
+        }
 
         public static object GetDefaultValue(Type t) {
             if (t.IsValueType) {
@@ -94,6 +111,7 @@ namespace TVS_Server {
         }
     }
     public static class Extentions {
+
 
         /// <summary>
         /// Updates all null or default value properties from old with data from new
