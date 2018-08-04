@@ -9,7 +9,7 @@ using System.Diagnostics;
 
 namespace TVS_Server{
     class Renamer{
-        public static async void RunRenamer() {
+        public static async Task RunRenamer() {
             await Task.Run(() => {
                 //Search and filter files from library and other scan dirs
                 var libFiles = GetFilesInLibrary();

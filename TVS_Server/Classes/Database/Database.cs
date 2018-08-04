@@ -456,6 +456,7 @@ namespace TVS_Server
                 Settings.DatabaseUpdateTime = DateTime.Now;
             }
             await CheckAllSeries();
+            await Renamer.RunRenamer();
         }
 
         private static void UpdateSeries(int seriesId, Series newData) {

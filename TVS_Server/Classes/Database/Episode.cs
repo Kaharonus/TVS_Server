@@ -20,6 +20,7 @@ namespace TVS_Server {
         public string Overview { get; set; }
         public string ShowUrl { get; set; }
         public int? AbsoluteNumber { get; set; }
+        [PrivateData]
         public string Filename { get; set; }
         public int? SeriesId { get; set; }
         public int? AirsAfterSeason { get; set; }
@@ -32,7 +33,7 @@ namespace TVS_Server {
         [PrivateData]
         public bool FullInfo { get; set; } = false;
         public DatabaseFile File { get; set; }
-
+        public string URL { get; set; }
         /// <summary>
         /// Requests basic information about all episodes from TVDb API
         /// </summary>

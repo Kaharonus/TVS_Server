@@ -12,6 +12,7 @@ namespace TVS_Server {
         public int Id { get; set; }
         public string KeyType { get; set; }
         public string SubKey { get; set; }
+        [PrivateData]
         public string FileName { get; set; }
         public string Resolution { get; set; }
         public RatingsInfo ratingsInfo { get; set; }
@@ -20,6 +21,8 @@ namespace TVS_Server {
             public double Average { get; set; }
             public int? Count { get; set; }
         }
+
+        public string URL { get; set; }
 
         /// <summary>
         /// Request information about posters

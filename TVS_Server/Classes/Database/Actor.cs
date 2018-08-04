@@ -15,8 +15,9 @@ namespace TVS_Server
         public string Name { get; set; }
         public string Role { get; set; }
         public int? SortOrder { get; set; }
+        [PrivateData]
         public string Image { get; set; }
-        public string ImageAdded { get; set; }
+        public string URL { get; set; }
 
         /// <summary>
         /// Requests all information about actors in TV Show from TVDb API

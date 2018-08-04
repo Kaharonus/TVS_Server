@@ -41,16 +41,17 @@ namespace TVS_Server
 
         private static async void TestMethod() {
             Log.Write(DateTime.Now.ToShortDateString()+ ", " + DateTime.Now.ToLongTimeString()+", " + Helper.GetMyIP());
-            Settings.ScanLocation1 = @"D:\TVSTests\ImportFolder\";
-            Renamer.RunRenamer();
-
-/*            while (true) {
-                var list = BackgroundAction.GetActions();
-                foreach (var action in list) {
-                    Log.Write(action.Name + ", " + action.Value + "/" + action.MaxValue + ", " + action.TimeRemaining);
-                }
-                await Task.Delay(1000);
-            }*/
+            DataServer ds = new DataServer(8080);
+            ds.Start();
+            FileServer fs = new FileServer(8081, @"D:\TVSTests\");
+            fs.Start();
+            /*            while (true) {
+                            var list = BackgroundAction.GetActions();
+                            foreach (var action in list) {
+                                Log.Write(action.Name + ", " + action.Value + "/" + action.MaxValue + ", " + action.TimeRemaining);
+                            }
+                            await Task.Delay(1000);
+                        }*/
 
         }
 

@@ -13,6 +13,7 @@ namespace TVS_Server {
         public int Id { get; set; }
         public string SeriesName { get; set; }
         public List<string> aliases = new List<string>();
+        [PrivateData]
         public string Banner { get; set; }
         public string Status { get; set; }
         public string FirstAired { get; set; }
@@ -30,7 +31,7 @@ namespace TVS_Server {
 
         [PrivateData]
         public string LibraryPath { get; set; }
-
+        public string URL { get; set; }
         /// <summary>
         /// Searches TVMaze API for Series
         /// </summary>
