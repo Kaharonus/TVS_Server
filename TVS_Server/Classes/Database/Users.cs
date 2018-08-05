@@ -75,6 +75,8 @@ namespace TVS_Server
         });
 
     }
+
+
     class User {
         public short Id { get; set; }
         public string UserName { get; set; }
@@ -113,9 +115,16 @@ namespace TVS_Server
         }
 
         public UserDevice AddDevice(string ipAddress) {
-            var dev = UserDevice.Create(this, ipAddress);
-            Devices.Add(dev);
-            return dev;
+            var mac = Helper.GetMacAddress(ipAddress);
+            var existingDev = Devices.Where(x => x.MacAddress == mac).FirstOrDefault();
+            if (existingDev != null) {
+                var dev = UserDevice.Create(this, ipAddress, mac);
+                Devices.Add(dev);
+                return dev;
+            } else {
+                return existingDev;
+            }
+
         }
 
         public UserDevice GetDevice(string macAddress) {
@@ -126,10 +135,18 @@ namespace TVS_Server
         public class UserDevice {
             public string MacAddress { get; set; }
             public string Token { get; set; }
+
             public static UserDevice Create(User user, string ip) {
                 return new UserDevice {
                     Token = GenerateToken(user.Id),
                     MacAddress = Helper.GetMacAddress(ip)
+                };
+            }
+
+            public static UserDevice Create(User user, string ip, string mac) {
+                return new UserDevice {
+                    Token = GenerateToken(user.Id),
+                    MacAddress = mac
                 };
             }
 

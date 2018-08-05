@@ -8,6 +8,9 @@ using HttpListener = System.Net.Http.HttpListener;
 using NETStandard.HttpListener;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
+using System.Linq;
+using Newtonsoft.Json;
+
 namespace TVS_Server
 {
     class DataServer
@@ -39,29 +42,29 @@ namespace TVS_Server
             Log.Write("API Started @ " + IP + ":" + Port);
         }
 
-        private void HandleRequest(HttpListenerRequestEventArgs context) {
-            Task.Run(async () => {
-                Log.Write(context.Request.HttpMethod + " - ");
-                switch (context.Request.Url.Segments[1].Replace("/","").ToLower()) {
+        private async Task HandleRequest(HttpListenerRequestEventArgs ctx) {
+            await Task.Run(async () => {
+                var context = ctx;
+                Log.Write(ctx.Request.HttpMethod + " - " + ctx.Request.RemoteEndpoint.ToString() + " - " + ctx.Request.Url.PathAndQuery);
+                switch (context.Request.Url.Segments[1].Replace("/", "").ToLower()) {
                     case "api":
                         HandleApi(context);
                         break;
-                    case "file": case "image":
+                    case "file":
+                    case "image":
                         HandleData(context);
                         break;
                     case "register":
-                        HandleRegister(context);
+                        HandleUser(context, true);
                         break;
                     case "login":
-                        HandleLogin(context);
+                        HandleUser(context,false);
                         break;
                     default:
                         HandleNotFound(context);
                         break;
                 }
-                await context.Response.RedirectAsync(new Uri("http://192.168.1.83:8081/test.mkv"));
-                //context.Response.Close();
-            });
+            });            
         }
 
         private void HandleApi(HttpListenerRequestEventArgs context) {
@@ -72,17 +75,71 @@ namespace TVS_Server
 
         }
 
-        private void HandleRegister(HttpListenerRequestEventArgs context) {
+        private void HandleUser(HttpListenerRequestEventArgs context, bool register) {
+            if (context.Request.HttpMethod.ToLower() != "post") {
+                HandleNotAllowed(context);
+            } else {
+                try {
+                    UserRequest user = (UserRequest)JsonConvert.DeserializeObject(new StreamReader(context.Request.InputStream).ReadToEnd(), typeof(UserRequest));
+                    if (String.IsNullOrEmpty(user.Username) || String.IsNullOrEmpty(user.Password)) {
+                        HandleWrongJson(context);
+                        return;
+                    }
+                    var databaseUser = Users.GetUsers().Values.Where(x => x.UserName.ToLower() == user.Username.ToLower()).FirstOrDefault();
+                    if (databaseUser != null) {
+                        if (register) {
+                            HandleError(context, 401, "Username is already in use.");
+                        } else if(databaseUser.Password != Helper.HashString(user.Password)) {
+                            HandleError(context, 401, "Wrong username or password.");
+                        } else {
+                            //Successful login reqeust
+                            var device = databaseUser.AddDevice(context.Request.RemoteEndpoint.Address.ToString());
+                            StreamWriter sr = new StreamWriter(context.Response.OutputStream);
+                            sr.Write(device.Token);
+                            context.Response.Close();
+                        }
+                    } else {
+                        if (register) {
+                            //Successful register request
+                            var token = Users.CreateUser(user.Username, user.Password, context.Request.RemoteEndpoint.Address.ToString());
+                            StreamWriter sr = new StreamWriter(context.Response.OutputStream);
+                            sr.Write(token);
+                            context.Response.Close();
+                        } else {
+                            HandleError(context, 401, "Wrong username or password.");
+                        }
+                    }
+                } catch (Exception) {
+                    HandleWrongJson(context);
+                }
 
-        }
-
-        private void HandleLogin(HttpListenerRequestEventArgs context) {
-
+            }
         }
 
         private void HandleNotFound(HttpListenerRequestEventArgs context) {
             context.Response.NotFound();
             context.Response.Close();
+        }
+
+        private void HandleWrongJson(HttpListenerRequestEventArgs context) {
+            context.Response.ReasonPhrase = "Wrong input format. Ex.: { \"username\":\"\",\"password\":\"\"}";
+            context.Response.StatusCode = 401;
+            context.Response.Close();
+        }
+        private void HandleNotAllowed(HttpListenerRequestEventArgs context) {
+            context.Response.MethodNotAllowed();
+            context.Response.Close();
+        }
+
+        private void HandleError(HttpListenerRequestEventArgs context, int statuscode, string phrase) {
+            context.Response.ReasonPhrase = phrase;
+            context.Response.StatusCode = statuscode;
+            context.Response.Close();
+        }
+
+        class UserRequest {
+            public string Username { get; set; }
+            public string Password { get; set; }
         }
     }
 }

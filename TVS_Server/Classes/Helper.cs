@@ -12,9 +12,21 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Reflection;
 using System.IO;
+using System.Security.Cryptography;
 
 namespace TVS_Server {
     class Helper {
+
+        public static string HashString(string input) {
+            using (SHA512 sha = SHA512.Create()) {
+                var hashedBytes = sha.ComputeHash(Encoding.UTF8.GetBytes(input));
+                return BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
+            }
+        }
+
+        public static MemoryStream StringToStream(string input) { 
+            return new MemoryStream(Encoding.UTF8.GetBytes(input));
+        }
 
         public static string GenerateName(int seriesId, int episodeId) {
             var series = Database.GetSeries(seriesId);
