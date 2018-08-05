@@ -33,17 +33,56 @@ namespace TVS_Server
         public void Start() {
             if (Listener == null) {
                 Listener = new HttpListener(System.Net.IPAddress.Parse(IP), Port);
-                Listener.Request += (s, ev) => Listen(ev);
+                Listener.Request += (s, ev) => HandleRequest(ev);
             }
             Listener.Start();
             Log.Write("API Started @ " + IP + ":" + Port);
         }
 
-        public void Listen(HttpListenerRequestEventArgs context) {
+        private void HandleRequest(HttpListenerRequestEventArgs context) {
             Task.Run(async () => {
+                Log.Write(context.Request.HttpMethod + " - ");
+                switch (context.Request.Url.Segments[1].Replace("/","").ToLower()) {
+                    case "api":
+                        HandleApi(context);
+                        break;
+                    case "file": case "image":
+                        HandleData(context);
+                        break;
+                    case "register":
+                        HandleRegister(context);
+                        break;
+                    case "login":
+                        HandleLogin(context);
+                        break;
+                    default:
+                        HandleNotFound(context);
+                        break;
+                }
                 await context.Response.RedirectAsync(new Uri("http://192.168.1.83:8081/test.mkv"));
                 //context.Response.Close();
             });
-        }      
+        }
+
+        private void HandleApi(HttpListenerRequestEventArgs context) {
+
+        }
+
+        private void HandleData(HttpListenerRequestEventArgs context) {
+
+        }
+
+        private void HandleRegister(HttpListenerRequestEventArgs context) {
+
+        }
+
+        private void HandleLogin(HttpListenerRequestEventArgs context) {
+
+        }
+
+        private void HandleNotFound(HttpListenerRequestEventArgs context) {
+            context.Response.NotFound();
+            context.Response.Close();
+        }
     }
 }

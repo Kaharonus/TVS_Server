@@ -6,6 +6,7 @@ using System.Text;
 namespace TVS_Server{
     class Log {
         public static void Write(string text, ISolidColorBrush fontColor = null) {
+            text = "[" + DateTime.Now.ToString("HH\\:mm\\:ss") + "] " + text;
             if (Program.GUIEnabeled) {
 
             }

@@ -28,6 +28,7 @@ namespace TVS_Server
             Settings.LoadSettings();
             if (Settings.DatabaseUpdateTime == default) Settings.DatabaseUpdateTime = DateTime.Now;
             await Database.LoadDatabase();
+            await Users.LoadUsers();
         }
 
         private static void StartApplication() {
@@ -45,6 +46,7 @@ namespace TVS_Server
             ds.Start();
             FileServer fs = new FileServer(8081, @"D:\TVSTests\");
             fs.Start();
+            Users.CreateUser("test", "test", Helper.GetMyIP());
             /*            while (true) {
                             var list = BackgroundAction.GetActions();
                             foreach (var action in list) {

@@ -403,7 +403,7 @@ namespace TVS_Server
         /// <summary>
         /// Reads specified file, returns it as JObject for further parsing, takes care of backup file recovery
         /// </summary>
-        private static JObject ReadFile(string file) {
+        public static JObject ReadFile(string file) {
             if (File.Exists(file)) {
                 string json = File.ReadAllText(file);
                 try {
