@@ -44,8 +44,6 @@ namespace TVS_Server
             Log.Write(DateTime.Now.ToShortDateString()+ ", " + DateTime.Now.ToLongTimeString()+", " + Helper.GetMyIP());
             DataServer ds = new DataServer(8080);
             ds.Start();
-            FileServer fs = new FileServer(8081, @"D:\TVSTests\");
-            fs.Start();
             //Users.CreateUser("test", "test", Helper.GetMyIP());
             /*            while (true) {
                             var list = BackgroundAction.GetActions();

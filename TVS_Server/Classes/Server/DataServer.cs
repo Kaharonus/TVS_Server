@@ -94,26 +94,31 @@ namespace TVS_Server
                         } else {
                             //Successful login reqeust
                             var device = databaseUser.AddDevice(context.Request.RemoteEndpoint.Address.ToString());
-                            StreamWriter sr = new StreamWriter(context.Response.OutputStream);
-                            sr.Write(device.Token);
-                            context.Response.Close();
+                            HandleReturn(context, device.Token);
                         }
                     } else {
                         if (register) {
                             //Successful register request
                             var token = Users.CreateUser(user.Username, user.Password, context.Request.RemoteEndpoint.Address.ToString());
-                            StreamWriter sr = new StreamWriter(context.Response.OutputStream);
-                            sr.Write(token);
-                            context.Response.Close();
+                            HandleReturn(context, token);
                         } else {
                             HandleError(context, 401, "Wrong username or password.");
                         }
                     }
-                } catch (Exception) {
+                } catch (JsonException e) {
                     HandleWrongJson(context);
                 }
 
             }
+        }
+
+        private void HandleReturn(HttpListenerRequestEventArgs context,string input) {
+            context.Response.OutputStream.Position = 0;
+            StreamWriter sr = new StreamWriter(context.Response.OutputStream);
+            sr.Write(input);
+            sr.Flush();
+            context.Response.StatusCode = 200;
+            context.Response.Close();
         }
 
         private void HandleNotFound(HttpListenerRequestEventArgs context) {

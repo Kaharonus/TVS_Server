@@ -117,7 +117,7 @@ namespace TVS_Server
         public UserDevice AddDevice(string ipAddress) {
             var mac = Helper.GetMacAddress(ipAddress);
             var existingDev = Devices.Where(x => x.MacAddress == mac).FirstOrDefault();
-            if (existingDev != null) {
+            if (existingDev == null) {
                 var dev = UserDevice.Create(this, ipAddress, mac);
                 Devices.Add(dev);
                 return dev;
