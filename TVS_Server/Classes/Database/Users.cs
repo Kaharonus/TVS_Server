@@ -67,7 +67,7 @@ namespace TVS_Server
             }
         });
         
-        public static async Task LoadUsers() => await Task.Run(() => {
+        public static async Task LoadUsers() => await Task.Run(async () => {
             var users = Database.ReadFile(Database.DatabasePath + "Users.TVSData");
             if (users != new JObject()) {
                 Data = (Dictionary<short, User>)users.ToObject(typeof(Dictionary<short, User>));
@@ -120,6 +120,7 @@ namespace TVS_Server
             if (existingDev == null) {
                 var dev = UserDevice.Create(this, ipAddress, mac);
                 Devices.Add(dev);
+                
                 return dev;
             } else {
                 return existingDev;
@@ -160,7 +161,7 @@ namespace TVS_Server
                     int generatedValue = Math.Abs(BitConverter.ToInt32(data, 0));
                     password += randomChars[generatedValue % randomChars.Length];
                 }
-                password += Convert.ToBase64String(BitConverter.GetBytes(id));
+                password += id.ToString("X4");
                 return password;
             }
         }

@@ -68,6 +68,17 @@ namespace TVS_Server
         }
 
         private void HandleApi(HttpListenerRequestEventArgs context) {
+            if (context.Request.HttpMethod.ToLower() == "get") {
+                if (IsAuthorized(context, out User user)) {
+                    Api.GetResponse(context.Request.Url.PathAndQuery, user);
+                    context.Response.NotImplemented();
+                    context.Response.Close();
+                } else {
+                    HandleError(context, 401, "Not authorized.");
+                }
+            } else {
+                HandleMethodNotAllowed(context);
+            }
 
         }
 
@@ -77,7 +88,7 @@ namespace TVS_Server
 
         private void HandleUser(HttpListenerRequestEventArgs context, bool register) {
             if (context.Request.HttpMethod.ToLower() != "post") {
-                HandleNotAllowed(context);
+                HandleMethodNotAllowed(context);
             } else {
                 try {
                     UserRequest user = (UserRequest)JsonConvert.DeserializeObject(new StreamReader(context.Request.InputStream).ReadToEnd(), typeof(UserRequest));
@@ -94,6 +105,7 @@ namespace TVS_Server
                         } else {
                             //Successful login reqeust
                             var device = databaseUser.AddDevice(context.Request.RemoteEndpoint.Address.ToString());
+                            Users.SetUser(databaseUser.Id, databaseUser);
                             HandleReturn(context, device.Token);
                         }
                     } else {
@@ -108,8 +120,21 @@ namespace TVS_Server
                 } catch (JsonException e) {
                     HandleWrongJson(context);
                 }
-
             }
+        }
+
+        private bool IsAuthorized(HttpListenerRequestEventArgs context, out User user) {
+            var request = context.Request;
+            user = new User();
+            if (request.Headers.Keys.Contains("AuthToken") && request.Headers["AuthToken"].Length == 128) {
+                var id = Int16.Parse(request.Headers["AuthToken"].Substring(request.Headers["AuthToken"].Length - 4), System.Globalization.NumberStyles.HexNumber);
+                var us = Users.GetUser(id);
+                if (us.Devices.Where(x => x.Token == request.Headers["AuthToken"]).Count() > 0) {
+                    user = us;
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void HandleReturn(HttpListenerRequestEventArgs context,string input) {
@@ -131,7 +156,7 @@ namespace TVS_Server
             context.Response.StatusCode = 401;
             context.Response.Close();
         }
-        private void HandleNotAllowed(HttpListenerRequestEventArgs context) {
+        private void HandleMethodNotAllowed(HttpListenerRequestEventArgs context) {
             context.Response.MethodNotAllowed();
             context.Response.Close();
         }

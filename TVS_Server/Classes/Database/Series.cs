@@ -25,6 +25,7 @@ namespace TVS_Server {
         public string AirsTime { get; set; }
         public string Rating { get; set; }
         public string ImdbId { get; set; }
+        [PrivateData]
         public int? TvmazeId { get; set; }
         public double SiteRating { get; set; }
         public int? SiteRatingCount { get; set; }
