@@ -124,6 +124,22 @@ namespace TVS_Server {
     }
     public static class Extentions {
 
+        /// <summary>
+        /// Returns IEnumerable withouts its last item
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="source"></param>
+        /// <returns></returns>
+        public static IEnumerable<T> WithoutLast<T>(this IEnumerable<T> source) {
+            using (var e = source.GetEnumerator()) {
+                if (e.MoveNext()) {
+                    for (var value = e.Current; e.MoveNext(); value = e.Current) {
+                        yield return value;
+                    }
+                }
+            }
+        }
+
 
         /// <summary>
         /// Updates all null or default value properties from old with data from new

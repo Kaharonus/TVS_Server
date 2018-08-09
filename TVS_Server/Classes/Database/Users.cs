@@ -84,6 +84,7 @@ namespace TVS_Server
         public DateTime LastLogin { get; set; }
         public string LastLoginIP { get; set; }
         public List<UserDevice> Devices { get; set; } = new List<UserDevice>();
+        public Dictionary<int, int> SelectedPoster { get; set; } = new Dictionary<int, int>();
 
         [JsonConstructor]
         public User() { }

@@ -42,37 +42,45 @@ namespace TVS_Server
             Log.Write("API Started @ " + IP + ":" + Port);
         }
 
-        private async Task HandleRequest(HttpListenerRequestEventArgs ctx) {
+        private async Task HandleRequest(HttpListenerRequestEventArgs context) {
             await Task.Run(async () => {
-                var context = ctx;
-                Log.Write(ctx.Request.HttpMethod + " - " + ctx.Request.RemoteEndpoint.ToString() + " - " + ctx.Request.Url.PathAndQuery);
-                switch (context.Request.Url.Segments[1].Replace("/", "").ToLower()) {
-                    case "api":
-                        HandleApi(context);
-                        break;
-                    case "file":
-                    case "image":
-                        HandleData(context);
-                        break;
-                    case "register":
-                        HandleUser(context, true);
-                        break;
-                    case "login":
-                        HandleUser(context,false);
-                        break;
-                    default:
-                        HandleNotFound(context);
-                        break;
+                try {
+                    Log.Write(context.Request.HttpMethod + " - " + context.Request.RemoteEndpoint.ToString() + " - " + context.Request.Url.PathAndQuery);
+                    switch (context.Request.Url.Segments[1].Replace("/", "").ToLower()) {
+                        case "api":
+                            HandleApi(context);
+                            break;
+                        case "file":
+                        case "image":
+                            HandleData(context);
+                            break;
+                        case "register":
+                            HandleUser(context, true);
+                            break;
+                        case "login":
+                            HandleUser(context, false);
+                            break;
+                        default:
+                            HandleNotFound(context);
+                            break;
+                    }
+                } catch (Exception e) {
+                    Log.Write("Internal server error: " + e.Message + e.StackTrace);
+                    HandleInternalError(context);
                 }
             });            
         }
 
         private void HandleApi(HttpListenerRequestEventArgs context) {
-            if (context.Request.HttpMethod.ToLower() == "get") {
+            var method = context.Request.HttpMethod.ToLower();
+            if (method == "get" || method == "post") {
                 if (IsAuthorized(context, out User user)) {
-                    Api.GetResponse(context.Request.Url.PathAndQuery, user);
-                    context.Response.NotImplemented();
-                    context.Response.Close();
+                    var result = method == "get" ? Api.Get.Response(context.Request.Url, user) : "";
+                    if (!String.IsNullOrEmpty(result)) {
+                        HandleReturn(context, result);
+                    } else {
+                        HandleNotFound(context);
+                    }
                 } else {
                     HandleError(context, 401, "Not authorized.");
                 }
@@ -164,6 +172,11 @@ namespace TVS_Server
         private void HandleError(HttpListenerRequestEventArgs context, int statuscode, string phrase) {
             context.Response.ReasonPhrase = phrase;
             context.Response.StatusCode = statuscode;
+            context.Response.Close();
+        }
+
+        private void HandleInternalError(HttpListenerRequestEventArgs context) {
+            context.Response.InternalServerError();
             context.Response.Close();
         }
 

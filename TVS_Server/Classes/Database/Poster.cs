@@ -19,7 +19,7 @@ namespace TVS_Server {
         public string Thumbnail { get; set; }
         public class RatingsInfo {
             public double Average { get; set; }
-            public int? Count { get; set; }
+            public int Count { get; set; }
         }
 
         public string URL { get; set; }

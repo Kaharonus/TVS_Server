@@ -66,6 +66,30 @@ namespace TVS_Server
             return Data.ContainsKey(seriesId) && Data[seriesId].Posters.ContainsKey(posterId) ? Data[seriesId].Posters[posterId] : new Poster();
         }
 
+        /*
+        * weighted rating (WR) = (v ÷ (v+m)) × R + (m ÷ (v+m)) × C , where:
+        * R = average for the poster (mean) = (Rating)
+        * v = number of votes for the poster = (votes)
+        * m = minimum votes required - average of all votes
+        * C = the mean vote across the whole report
+        */
+        public static int GetDefaultPosterId(int seriesId) {
+            Dictionary<Poster, double> weighted = new Dictionary<Poster, double>();
+            var posters = GetPosters(seriesId);
+            if (posters.Count > 0) {
+                double minimum = posters.Select(x => x.ratingsInfo.Count).ToList().Average();
+                double totalAverage = posters.Select(x => x.ratingsInfo.Average).ToList().Average();
+                foreach (var poster in posters) {
+                    int votes = poster.ratingsInfo.Count;
+                    weighted.Add(poster, (votes / (votes + minimum)) * poster.ratingsInfo.Average / (minimum / (votes + minimum)) * totalAverage);
+                }
+                var max = weighted.Max(x => x.Value);
+                return weighted.FirstOrDefault(x => x.Value == max).Key.Id;
+            } else {
+                return 0;
+            }
+        }
+
         public static DatabaseFile GetFile(int episodeId, int fileId) {
             if (Files.ContainsKey(episodeId)) {
                 var item = Files[episodeId].Where(x => x.Id == fileId).FirstOrDefault();
@@ -75,7 +99,6 @@ namespace TVS_Server
             }
             return new DatabaseFile();
         }
-
 
         #endregion
 
@@ -404,12 +427,11 @@ namespace TVS_Server
         /// Reads specified file, returns it as JObject for further parsing, takes care of backup file recovery
         /// </summary>
         public static JObject ReadFile(string file) {
-            if (File.Exists(file)) {
-                string json = File.ReadAllText(file);
                 try {
-                    var jobject = JObject.Parse(json);
+                string json = File.ReadAllText(file);
+                var jobject = JObject.Parse(json);
                     return jobject;
-                } catch (JsonReaderException e) {
+                } catch (Exception e) {
                     if (File.Exists(file + "Backup")) {
                         File.Delete(file);
                         File.Move(file + "Backup", file);
@@ -418,7 +440,6 @@ namespace TVS_Server
                         throw e;
                     }
                 }
-            }
             return new JObject();
         }
 
