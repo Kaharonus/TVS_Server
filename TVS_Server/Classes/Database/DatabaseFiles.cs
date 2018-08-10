@@ -6,17 +6,15 @@ namespace TVS_Server
 {
 
     class DatabaseFile {
-        public enum Filetype { Subtitle, Video }
         [PrivateData]
         public int Id { get; set; }
         [PrivateData]
         public string OldName { get; set; }
         [PrivateData]
         public string NewName { get; set; }
-        [PrivateData]
         public string URL { get; set; }
         public string Extension { get; set; }
-        public Filetype FileType { get; set; }
+        public string FileType { get; set; }
         public string SubtitleLanguage { get; set; }
         public string TimeStamp { get; set; }
         public int Resolution { get; set; } = 0;

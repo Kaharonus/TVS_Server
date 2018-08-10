@@ -32,7 +32,6 @@ namespace TVS_Server {
 
         [PrivateData]
         public bool FullInfo { get; set; } = false;
-        public DatabaseFile File { get; set; }
         public string URL { get; set; }
         /// <summary>
         /// Requests basic information about all episodes from TVDb API

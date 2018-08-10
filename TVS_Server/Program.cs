@@ -26,6 +26,10 @@ namespace TVS_Server
 
         private static async Task LoadApplication() {
             Settings.LoadSettings();
+            if (Settings.DataServerPort == default) {
+                Settings.DataServerPort = 5850;
+                Settings.FileServerPort = 5851;
+            }
             if (Settings.DatabaseUpdateTime == default) Settings.DatabaseUpdateTime = DateTime.Now;
             await Database.LoadDatabase();
             await Users.LoadUsers();
@@ -42,8 +46,7 @@ namespace TVS_Server
 
         private static async void TestMethod() {
             Log.Write(DateTime.Now.ToShortDateString()+ ", " + DateTime.Now.ToLongTimeString()+", " + Helper.GetMyIP());
-            DataServer ds = new DataServer(8080);
-            ds.Start();
+            Servers.StartDataServer();
             //Users.CreateUser("test", "test", Helper.GetMyIP());
             /*            while (true) {
                             var list = BackgroundAction.GetActions();

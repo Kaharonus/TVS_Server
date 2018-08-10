@@ -17,6 +17,8 @@ namespace TVS_Server
         private static string _scanLocation1;
         private static string _scanLocation2;
         private static string _scanLocation3;
+        private static int _dataServerPort;
+        private static int _fileServerPort;
         private static DateTime _tokenTimestamp;
         private static DateTime _databaseUpdateTime;
 
@@ -68,7 +70,15 @@ namespace TVS_Server
         public static string ScanLocation3 { get => _scanLocation3; set { _scanLocation3 = value; SaveSettings(); } }
 
 
+        /// <summary>
+        /// Specifies port that file server will run at. Default value is 5851
+        /// </summary>
+        public static int FileServerPort { get => _fileServerPort; set { _fileServerPort = value; SaveSettings(); } }
 
+        /// <summary>
+        /// Specifies port that data server will run at. Default value is 5850
+        /// </summary>
+        public static int DataServerPort { get => _dataServerPort; set { _dataServerPort = value; SaveSettings(); } }
 
 
 

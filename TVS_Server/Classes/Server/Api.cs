@@ -53,19 +53,35 @@ namespace TVS_Server {
                 }
                 return null;
             }
+
             public class GetOptions {
+
+                #region Series
+
                 public static object GetSeries(User user) {
-                    Stopwatch sw = new Stopwatch();
-                    sw.Start();
                     List<object> result = new List<object>();
                     foreach (var series in Database.GetSeries()) {
                         result.Add(EditSeries(series, user));
                     }
-                    sw.Stop();
                     return result;
                 }
 
                 public static object GetSeries(int seriesId, User user) => EditSeries(Database.GetSeries(seriesId), user);
+
+                private static Dictionary<string, object> EditSeries(Series series, User user) {
+                    if (series.Id != 0) {
+                        if (user.SelectedPoster.ContainsKey(series.Id)) {
+                            series.URL = "/image/" + user.SelectedPoster[series.Id];
+                        } else {
+                            user.SelectedPoster.Add(series.Id, Database.GetDefaultPosterId(series.Id));
+                            Users.SetUser(user.Id, user);
+                            series.URL = "/image/poster/" + user.SelectedPoster[series.Id];
+                        }
+                        return FilterPrivateData(series);
+                    } else {
+                        return null;
+                    }
+                }
 
                 public static object SearchSeries(string query, User user) {
                     List<object> result = new List<object>();
@@ -75,23 +91,101 @@ namespace TVS_Server {
                     return result;
                 }
 
-                private static Dictionary<string, object> EditSeries(Series series, User user) {
-                    if (series.Id != 0) {
-                        if (user.SelectedPoster.ContainsKey(series.Id)) {
-                            series.URL = "/data/image/" + user.SelectedPoster[series.Id];
-                        } else {
-                            user.SelectedPoster.Add(series.Id, Database.GetDefaultPosterId(series.Id));
-                            Users.SetUser(user.Id, user);
-                            series.URL = "/data/image/" + user.SelectedPoster[series.Id];
-                        }
-                        return FilterPrivateData(series);
+                #endregion
+
+                #region Episodes
+
+                public static object GetEpisodes(int seriesId,User user) {
+                    List<object> result = new List<object>();
+                    foreach (var episode in Database.GetEpisodes(seriesId)) {
+                        result.Add(EditEpisode(episode, seriesId, user));
+                    }
+                    return result;
+                }
+
+                public static object GetEpisode(int seriesId, int episodeId, User user) => EditEpisode(Database.GetEpisode(seriesId, episodeId, true), seriesId, user);
+
+                private static Dictionary<string, object> EditEpisode(Episode episode,int seriesId, User user) {
+                    if (episode.Id != 0) {
+                        episode.URL = "/image/episode/" + seriesId + "/" + episode.Id;
+                        return FilterPrivateData(episode);
                     } else {
                         return null;
                     }
                 }
 
-                public static object Search(string text, User user) {
-                    return new object();
+                #endregion
+
+                #region Actor
+                public static object GetActors(int seriesId ,User user) {
+                    List<object> result = new List<object>();
+                    foreach (var actor in Database.GetActors(seriesId)) {
+                        result.Add(EditActor(actor, user));
+                    }
+                    return result;
+                }
+
+                public static object GetActor(int actorId, User user) => EditActor(Database.GetActor(actorId), user);
+
+                private static Dictionary<string, object> EditActor(Actor actor, User user) {
+                    if (actor.Id != 0) {
+                        actor.URL = "/image/actor/" + actor.Id;
+                        return FilterPrivateData(actor);
+                    } else {
+                        return null;
+                    }
+                }
+
+                #endregion
+
+                #region Posters
+                public static object GetPosters(int seriesId, User user) {
+                    List<object> result = new List<object>();
+                    foreach (var poster in Database.GetPosters(seriesId)) {
+                        result.Add(EditPoster(poster, user));
+                    }
+                    return result;
+                }
+
+                public static object GetPoster(int posterId, User user) => EditPoster(Database.GetPoster(posterId), user);
+
+                private static Dictionary<string, object> EditPoster(Poster poster, User user) {
+                    if (poster.Id != 0) {
+                        poster.URL = "/image/poster/" + poster.Id;
+                        return FilterPrivateData(poster);
+                    } else {
+                        return null;
+                    }
+                }
+
+                #endregion
+
+                #region Files
+
+                public static object GetFiles(int episodeId,User user) {
+                    List<object> result = new List<object>();
+                    foreach (var file in Database.GetFiles(episodeId)) {
+                        result.Add(EditFile(file, user));
+                    }
+                    return result;
+                }
+
+                private static Dictionary<string, object> EditFile(DatabaseFile file, User user) {
+                    if (file.Id != 0) {
+                        var timestamp = file.UserData.FirstOrDefault(x => x.userId == user.Id);
+                        if (timestamp != default) {
+                            file.TimeStamp = timestamp.ToString();
+                        }
+                        return FilterPrivateData(file);
+                    } else {
+                        return null;
+                    }
+                }
+
+                #endregion
+
+                public static object Search(string query, User user) {
+                    return Database.SearchDatabase(query.Replace("+"," "));
                 }
             }
             

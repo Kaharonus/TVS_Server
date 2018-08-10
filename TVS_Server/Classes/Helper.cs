@@ -66,13 +66,19 @@ namespace TVS_Server {
                 return false;
             }
         }
-
-        public static string DateTimeToString(DateTime dt) {
-            return dt.ToString("dd. MM. yyyy");
+        public static DateTime ParseDate(string date) {
+            if (DateTime.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime success)) {
+                return success;
+            } else {
+                return DateTime.MaxValue;
+            }
         }
 
 
 
+        public static string DateTimeToString(DateTime dt) {
+            return dt.ToString("dd. MM. yyyy");
+        }
 
         public static string GetMyIP() {
             string localIP;

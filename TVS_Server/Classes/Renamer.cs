@@ -226,11 +226,11 @@ namespace TVS_Server{
             foreach (var file in files) {
                 var ext = Path.GetExtension(file.OldName);
                 if (videoExtensions.Any(x => x == ext)) {
-                    file.FileType = DatabaseFile.Filetype.Video;
+                    file.FileType = "Video";
                     file.Extension = ext;
                     filtered.Add(file);
                 } else if (subExtension.Any(x => x == ext)) {
-                    file.FileType = DatabaseFile.Filetype.Subtitle;
+                    file.FileType = "Subtitle";
                     file.Extension = ext;
                     file.SubtitleLanguage = "Unknown";
                     filtered.Add(file);

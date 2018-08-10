@@ -46,24 +46,28 @@ namespace TVS_Server
             await Task.Run(async () => {
                 try {
                     Log.Write(context.Request.HttpMethod + " - " + context.Request.RemoteEndpoint.ToString() + " - " + context.Request.Url.PathAndQuery);
-                    switch (context.Request.Url.Segments[1].Replace("/", "").ToLower()) {
-                        case "api":
-                            HandleApi(context);
-                            break;
-                        case "file":
-                        case "image":
-                            HandleData(context);
-                            break;
-                        case "register":
-                            HandleUser(context, true);
-                            break;
-                        case "login":
-                            HandleUser(context, false);
-                            break;
-                        default:
-                            HandleNotFound(context);
-                            break;
-                    }
+                    if (context.Request.Url.LocalPath == "/") {
+                        HandleServerInfo(context);
+                    } else {
+                        switch (context.Request.Url.Segments[1].Replace("/", "").ToLower()) {
+                            case "api":
+                                HandleApi(context);
+                                break;
+                            case "file":
+                            case "image":
+                                await HandleData(context);
+                                break;
+                            case "register":
+                                HandleUser(context, true);
+                                break;
+                            case "login":
+                                HandleUser(context, false);
+                                break;
+                            default:
+                                HandleNotFound(context);
+                                break;
+                        }
+                    }                  
                 } catch (Exception e) {
                     Log.Write("Internal server error: " + e.Message + e.StackTrace);
                     HandleInternalError(context);
@@ -87,11 +91,18 @@ namespace TVS_Server
             } else {
                 HandleMethodNotAllowed(context);
             }
-
         }
 
-        private void HandleData(HttpListenerRequestEventArgs context) {
-
+        private async Task HandleData(HttpListenerRequestEventArgs context) {
+            if (context.Request.HttpMethod.ToLower() == "get") {
+                if (IsAuthorized(context, out User user)) {
+                    await context.Response.RedirectAsync(new Uri(Helper.GetMyIP() + Servers.FileServer.Port));
+                } else {
+                    HandleError(context, 401, "Not authorized.");
+                }
+            } else {
+                HandleMethodNotAllowed(context);
+            }
         }
 
         private void HandleUser(HttpListenerRequestEventArgs context, bool register) {
@@ -129,6 +140,17 @@ namespace TVS_Server
                     HandleWrongJson(context);
                 }
             }
+        }
+
+        private void HandleServerInfo(HttpListenerRequestEventArgs context) {
+            string response = "{ " +
+                "\"Name\":\"TVS_Server\",\n" +
+                "\"GitHub\":\"https://github.com/Kaharonus/TVS_Server\",\n" +
+                "\"Discription\":\"TVS_Server is a server for a client called TVSPlayer. It's use is to manage library of TV series/shows. Written in .Net Core with Avalonia UI. \",\n" +
+                "\"ServerTime\":\"" + DateTime.UtcNow.ToString("o") + "\",\n" +
+                "\"Version\":\"Unstable_Develop\"\n" +
+                "}";
+            HandleReturn(context, response);
         }
 
         private bool IsAuthorized(HttpListenerRequestEventArgs context, out User user) {

@@ -51,19 +51,19 @@ namespace TVS_Server
             return Data.ContainsKey(seriesId) ? Data[seriesId].Series : new Series();
         }
 
-        public static Episode GetEpisode(int seriesId, int episodeId, bool fullInfo = false) {
+        public static Episode GetEpisode(int seriesId,int episodeId, bool fullInfo = false) {
             if (fullInfo) {
-                FillData(seriesId, episodeId).Wait();
+                FillData(seriesId,episodeId).Wait();
             }
             return Data.ContainsKey(seriesId) && Data[seriesId].Episodes.ContainsKey(episodeId) ? Data[seriesId].Episodes[episodeId] : new Episode();
         }
 
-        public static Actor GetActor(int seriesId, int actorId) {
-            return Data.ContainsKey(seriesId) && Data[seriesId].Actors.ContainsKey(actorId) ? Data[seriesId].Actors[actorId] : new Actor();
+        public static Actor GetActor(int actorId) {
+            return Data.SelectMany(x => x.Value.Actors).FirstOrDefault(x => x.Value.Id == actorId).Value ?? new Actor();
         }
 
-        public static Poster GetPoster(int seriesId, int posterId) {
-            return Data.ContainsKey(seriesId) && Data[seriesId].Posters.ContainsKey(posterId) ? Data[seriesId].Posters[posterId] : new Poster();
+        public static Poster GetPoster(int posterId) {
+            return Data.SelectMany(x => x.Value.Posters).FirstOrDefault(x => x.Value.Id == posterId).Value ?? new Poster();
         }
 
         /*
@@ -402,6 +402,18 @@ namespace TVS_Server
 
         #region Support methods
 
+        public static List<DatabaseSearchResult> SearchDatabase(string text) {
+            List<DatabaseSearchResult> results = new List<DatabaseSearchResult>();
+            foreach (var item in Data) {
+                var eps = item.Value.Episodes.Where(x => Helper.ParseDate(x.Value.FirstAired) <= DateTime.Now && x.Value.EpisodeName.IndexOf(text, StringComparison.InvariantCultureIgnoreCase) >= 0).ToList();
+                eps.ForEach(x => results.Add(new DatabaseSearchResult { Name = x.Value.EpisodeName, EpisodeId = x.Key, Id = item.Key, Type = "Episode" }));
+                if (item.Value.Series.SeriesName.IndexOf(text, StringComparison.InvariantCultureIgnoreCase) >= 0) {
+                    results.Add(new DatabaseSearchResult { Name = item.Value.Series.SeriesName, Id = item.Key, Type = "Series" });
+                }
+            }
+            return results;
+        }
+
         /// <summary>
         /// Returns path to library on whatever platform
         /// TODO: Create path for OSX
@@ -524,7 +536,7 @@ namespace TVS_Server
 
         #region Episode data fill-in
 
-        private static List<(int serisId, Episode ep)> fillEpisodes = new List<(int, Episode)>();
+        private static List<(int seriesId, Episode ep)> fillEpisodes = new List<(int, Episode)>();
 
         private static async Task CheckAllSeries() {
             while (fillEpisodes.Count > 0) {
@@ -537,7 +549,7 @@ namespace TVS_Server
                 BackgroundAction action = new BackgroundAction("Filling episode data", fillEpisodes.Count);
                 foreach (var item in fillEpisodes) {
                     action.Name = "Filling episode data - " + item.ep.EpisodeName;
-                    await FillData(item.serisId, item.ep.Id);
+                    await FillData(item.seriesId, item.ep.Id);
                     action.Value++;
                 }
                 fillEpisodes.Clear();
