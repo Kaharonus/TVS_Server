@@ -21,7 +21,21 @@ namespace TVS_Server {
             return result;
         }
 
+        private static List<(string name, MethodInfo method ,Dictionary<string, Type> args)> LoadMethods(Type type) {
+            var result = new List<(string name, MethodInfo method, Dictionary<string, Type> args)>();
+            foreach (var item in type.GetMethods(BindingFlags.Public | BindingFlags.Static)) {
+                (string name, MethodInfo method, Dictionary<string, Type> args) method = (item.Name.ToLower(), item, new Dictionary<string, Type>());
+                foreach (var par in item.GetParameters()) {
+                    method.args.Add(par.Name.ToLower(), par.ParameterType);
+                }
+                result.Add(method);
+            }
+            return result;
+        }
+
         public class Get {
+
+            public static List<(string name, MethodInfo method ,Dictionary<string,Type> args)> Methods = LoadMethods(typeof(GetOptions));
 
             public static string Response(Uri request, User user) {
                 if (request.Segments.Count() == 3) {
@@ -33,23 +47,22 @@ namespace TVS_Server {
                             paramQuery.Add(parts[0].ToLower(), parts[1]);
                         }
                     }
-                    var methods = typeof(GetOptions).GetMethods(BindingFlags.Public | BindingFlags.Static).Where(x => x.Name.ToLower() == requestedMethod).ToList();
+                    var methods = Methods.Where(x => x.name == requestedMethod).ToList();
                     foreach (var method in methods) {
-                        var par = method.GetParameters().WithoutLast().ToDictionary(x => x.Name.ToLower(), x => x);
-                        if (par.Keys.All(x => paramQuery.Keys.Contains(x)) && par.Keys.Count == paramQuery.Keys.Count && par.All(x => x.Value.ParameterType == typeof(int) ? Int32.TryParse((string)paramQuery[x.Key], out int r) : true)) {
+                        var args = method.args.WithoutLast().ToDictionary(x=>x.Key,x=>x.Value);
+                        if (args.Keys.All(x => paramQuery.Keys.Contains(x)) && args.Keys.Count == paramQuery.Keys.Count && args.All(x => x.Value == typeof(int) ? Int32.TryParse((string)paramQuery[x.Key], out int r) : true)) {
                             paramQuery.Add("user", user);
-                            par = method.GetParameters().ToDictionary(x => x.Name, x => x);
                             List<object> obj = new List<object>();
-                            foreach (var item in par) {
-                                obj.Add(item.Value.ParameterType == typeof(int) ? Int32.Parse((string)paramQuery[item.Key.ToLower()]) : paramQuery[item.Key.ToLower()]);
+                            foreach (var item in method.args) {
+                                obj.Add(item.Value == typeof(int) ? Int32.Parse((string)paramQuery[item.Key.ToLower()]) : paramQuery[item.Key.ToLower()]);
                             }
-                            var result = method.Invoke(null, obj.ToArray());
+                            var result = method.method.Invoke(null, obj.ToArray());
                             if (result != null) {
                                 return JsonConvert.SerializeObject(result);
                             }
                         }
                     }
-                    
+
                 }
                 return null;
             }
