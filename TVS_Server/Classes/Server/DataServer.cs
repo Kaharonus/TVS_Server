@@ -15,18 +15,10 @@ namespace TVS_Server
 {
     class DataServer
     {
-        public int Port { get; set; }
-        public string IP { get; set; }
-        public bool IsRunning { get; set; }
+        public int Port { get; set; } = Settings.DataServerPort;
+        public string IP { get; set; } = Helper.GetMyIP();
+        public bool IsRunning { get; set; } = false;
         private HttpListener Listener { get; set; }
-
-        public DataServer(int port) {
-            Port = port;
-            IsRunning = false;
-            IP = Helper.GetMyIP();
-
-        }
-
 
         public void Stop() {
             Listener.Close();
@@ -94,14 +86,20 @@ namespace TVS_Server
         }
 
         private async Task HandleData(HttpListenerRequestEventArgs context) {
-            if (context.Request.HttpMethod.ToLower() == "get") {
-                if (IsAuthorized(context, out User user)) {
-                    await context.Response.RedirectAsync(new Uri(Helper.GetMyIP() + Servers.FileServer.Port));
+            if (Servers.FileServer.IsRunning) {
+                if (context.Request.HttpMethod.ToLower() == "get") {
+                    var type = context.Request.Url.Segments[1].Replace("/", "").ToLower();
+                    if (Api.Files.GetRedirectUrl(context.Request.Url, type, out string url)) {
+                        await context.Response.RedirectAsync(new Uri(url));
+                    } else {
+                        HandleNotFound(context);
+                    }
                 } else {
-                    HandleError(context, 401, "Not authorized.");
+                    HandleMethodNotAllowed(context);
                 }
             } else {
-                HandleMethodNotAllowed(context);
+                HandleError(context, 500, "Server for file transfer is not running");
+                Log.Write("Error: " + context.Request.RemoteEndpoint.Address.ToString() + " request a file, but the server is not running");
             }
         }
 

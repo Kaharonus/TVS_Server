@@ -9,14 +9,14 @@ using System.Threading;
 namespace TVS_Server
 {
     public class FileServer {
+        public static Dictionary<string, string> FileDictionary = new Dictionary<string, string>();
+
         public List<string> Clients { get; set; } = new List<string>();
         public int LoopCount { get; set; }
         public int ClientCount { get; set; }
-        public bool IsRunning { get; set; } = false;//Flag set to true when running and false to kill the service
-        public string IP { get; set; }//The ip of this service we will listen on for DLNA requests
-        public int Port { get; set; }//The post we will listen on for incoming DLNA requests 
-        public string RootMovies { get; set; } //Points towards the root path of your media collection
-
+        public bool IsRunning { get; set; } = false; //Flag set to true when running and false to kill the service
+        public string IP { get; set; } = Helper.GetMyIP();
+        public int Port { get; set; } = Settings.FileServerPort;
         private long LastFileLength = 0;
         private string LastFileName = "";//Sometimes we keep the file-stream open so need to know the name of the last file served up
         private FileStream FS = null;
@@ -26,15 +26,8 @@ namespace TVS_Server
         private Socket TempClient = null;  //Past to the client thread ready to service the request
         private string TempFileName = "";  //Past to the client thread ready to service the request
 
-        public FileServer(int port, string rootMovies) {
-            this.IP = Helper.GetMyIP();
-            this.Port = port;
-            this.RootMovies = rootMovies;
-            if (!this.RootMovies.EndsWith("\\")) this.RootMovies += "\\";
-        }
-
         public void Start() {//Starts our DLNA service
-            if (!Directory.Exists(this.RootMovies) || this.IsRunning) return;
+            if (this.IsRunning) return;
             this.IsRunning = true;
             LoopCount = 0; ClientCount = 0;
             this.TH = new Thread(Listen);
@@ -86,13 +79,7 @@ namespace TVS_Server
             return GMT;//Example "Sat, 25 Jan 2014 12:03:19 GMT";
         }
 
-        public string MakeBaseUrl(string DirectoryName) {//Helper function to make the base url thats past to the DNLA device so that it can talk to this media service
-            DirectoryName = DirectoryName.ChopOffBefore(this.RootMovies);
-            DirectoryName = EncodeUrl(DirectoryName);
-            string Url = "http://" + this.IP + ":" + this.Port + "/" + DirectoryName + "/";
-            if (Url.EndsWith("//")) return Url.Substring(0, Url.Length - 1);
-            return Url;
-        }//Returns something like http://192.168.0.10:9090/Action%20Films/
+
 
         private string EncodeUrl(string Value) {//Encode requests sent to the DLNA device
             if (Value == null) return null;
@@ -137,12 +124,13 @@ namespace TVS_Server
                     MemoryStream MS = new MemoryStream();
                     MS.Write(Buf, 0, Size);
                     string Request = UTF8Encoding.UTF8.GetString(MS.ToArray());
-                    if (Request.ToUpper().StartsWith("HEAD /") && Request.ToUpper().IndexOf("HTTP/1.") > -1) {//Samsung TV
-                        string HeadFileName = RootMovies + Request.ChopOffBefore("HEAD /").ChopOffAfter("HTTP/1.").Trim().Replace("/", "\\");
-                        SendHeadData(TempClient, HeadFileName);
-                    } else if (Request.ToUpper().StartsWith("GET /") && Request.ToUpper().IndexOf("HTTP/1.") > -1) {
+                    if (Request.ToUpper().StartsWith("GET /") && Request.ToUpper().IndexOf("HTTP/1.") > -1) {
                         bool HasRange = false;
-                        TempFileName = this.RootMovies + Request.ChopOffBefore("GET /").ChopOffAfter("HTTP/1.").Trim();
+                        TempFileName = "";
+                        var requestedFile = Request.ChopOffBefore("GET /").ChopOffAfter("HTTP/1.").Trim();
+                        if (FileDictionary.ContainsKey(requestedFile)) {
+                            TempFileName = FileDictionary[requestedFile];
+                        }
                         TempFileName = DecodeUrl(TempFileName);
                         if (Request.ToLower().IndexOf("range: ") > -1) {
                             HasRange = true;//We can stream this if it's a movie using ranges

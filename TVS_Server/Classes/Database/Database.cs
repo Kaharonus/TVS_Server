@@ -439,9 +439,10 @@ namespace TVS_Server
         /// Reads specified file, returns it as JObject for further parsing, takes care of backup file recovery
         /// </summary>
         public static JObject ReadFile(string file) {
+            if (File.Exists(file) || File.Exists(file + "Backup")) {
                 try {
-                string json = File.ReadAllText(file);
-                var jobject = JObject.Parse(json);
+                    string json = File.ReadAllText(file);
+                    var jobject = JObject.Parse(json);
                     return jobject;
                 } catch (Exception e) {
                     if (File.Exists(file + "Backup")) {
@@ -452,6 +453,7 @@ namespace TVS_Server
                         throw e;
                     }
                 }
+            }
             return new JObject();
         }
 

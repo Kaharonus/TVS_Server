@@ -17,7 +17,20 @@ using System.Security.Cryptography;
 namespace TVS_Server {
     class Helper {
 
+        public static string HashString16(string input) {
+            const string chars = "0123456789abcdefghijklmnopqerstuvwxyz";
+            byte[] bytes = Encoding.UTF8.GetBytes(input);
+            SHA256Managed hashstring = new SHA256Managed();
+            byte[] hash = hashstring.ComputeHash(bytes);
+            char[] hash2 = new char[16];
+            for (int i = 0; i < hash2.Length; i++) {
+                hash2[i] = chars[hash[i] % chars.Length];
+            }
+            return new string(hash2);
+        }
+
         public static string HashString(string input) {
+    
             using (SHA512 sha = SHA512.Create()) {
                 var hashedBytes = sha.ComputeHash(Encoding.UTF8.GetBytes(input));
                 return BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();

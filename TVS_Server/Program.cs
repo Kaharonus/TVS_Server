@@ -47,6 +47,7 @@ namespace TVS_Server
         private static async void TestMethod() {
             Log.Write(DateTime.Now.ToShortDateString()+ ", " + DateTime.Now.ToLongTimeString()+", " + Helper.GetMyIP());
             Servers.StartDataServer();
+            Servers.StartFileServer();
             //Users.CreateUser("test", "test", Helper.GetMyIP());
             /*            while (true) {
                             var list = BackgroundAction.GetActions();

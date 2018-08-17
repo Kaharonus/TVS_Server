@@ -11,6 +11,9 @@ using System.Diagnostics;
 namespace TVS_Server {
     class Api {
 
+        /// <summary>
+        /// Filters properties with PrivateData attribute from object and returns it as dictioanry
+        /// </summary>
         private static Dictionary<string, object> FilterPrivateData(object obj) {
             var result = new Dictionary<string, object>();
             var properties = obj.GetType().GetProperties();         
@@ -21,6 +24,9 @@ namespace TVS_Server {
             return result;
         }
 
+        /// <summary>
+        /// Loads public static properties of any type into List of Tupples.
+        /// </summary>
         private static List<(string name, MethodInfo method ,Dictionary<string, Type> args)> LoadMethods(Type type) {
             var result = new List<(string name, MethodInfo method, Dictionary<string, Type> args)>();
             foreach (var item in type.GetMethods(BindingFlags.Public | BindingFlags.Static)) {
@@ -205,7 +211,40 @@ namespace TVS_Server {
         }
         
 
-        class Post {
+        public class Post {
+
+        }
+
+        public class Files {
+            public static bool GetRedirectUrl(Uri request, string type, out string url) {
+                string fileName = url = "";
+                if (type == "file") {
+                    List<string> segments = new List<string>();
+                    foreach (var item in request.Segments) {
+                        var temp = item.Replace("/", "");
+                        if(temp.Length > 0) {
+                            segments.Add(temp);
+                        }
+                    }
+                    if (segments.Count == 3 && Int32.TryParse(segments[1], out int episodeId) && Int32.TryParse(segments[2], out int id)) {
+                        var file = Database.GetFile(episodeId, id);
+                        if(file != default) {
+                            fileName = file.NewName;
+                        }
+                    }
+                } else {
+                }
+                if (!String.IsNullOrEmpty(fileName)) {
+                    string hash = Helper.HashString16(fileName);
+                    if (!FileServer.FileDictionary.ContainsKey(hash)) {
+                        FileServer.FileDictionary.Add(hash, fileName);
+                    }
+                    url = "http://" + Servers.FileServer.IP + ":" + Servers.FileServer.Port + "/" + hash;
+                    return true; 
+                }
+                return false;
+            }
+
 
         }
 

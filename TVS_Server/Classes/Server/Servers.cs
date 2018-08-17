@@ -5,11 +5,11 @@ using System.Text;
 namespace TVS_Server
 {
     class Servers{
-        public static FileServer FileServer { get; set; }
-        public static DataServer DataServer { get; set; }
+        public static FileServer FileServer { get; set; } = new FileServer();
+        public static DataServer DataServer { get; set; } = new DataServer();
 
         public static void StartFileServer() {
-            FileServer = new FileServer(Settings.FileServerPort,@"C:\");
+            FileServer = new FileServer();
             FileServer.Start();
         }
         public static void StopFileServer() {
@@ -18,7 +18,7 @@ namespace TVS_Server
             }
         }
         public static void StartDataServer() {
-            DataServer = new DataServer(Settings.DataServerPort);
+            DataServer = new DataServer();
             DataServer.Start();
         }
         public static void StopDataServer() {
