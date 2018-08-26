@@ -403,9 +403,11 @@ namespace TVS_Server
         #region Support methods
 
         public static List<DatabaseSearchResult> SearchDatabase(string text) {
+            text = text.Replace("%20", " ");
             List<DatabaseSearchResult> results = new List<DatabaseSearchResult>();
             foreach (var item in Data) {
-                var eps = item.Value.Episodes.Where(x => Helper.ParseDate(x.Value.FirstAired) <= DateTime.Now && x.Value.EpisodeName.IndexOf(text, StringComparison.InvariantCultureIgnoreCase) >= 0).ToList();
+                var eps = item.Value.Episodes.Where(x => Helper.ParseDate(x.Value.FirstAired) <= DateTime.Now && x.Value.EpisodeName.IndexOf(text, StringComparison.InvariantCultureIgnoreCase) >= 0 && x.Value.AiredSeason > 0).ToList();
+                eps = eps.OrderByDescending(x => x.Value.SiteRatingCount).ToList();
                 eps.ForEach(x => results.Add(new DatabaseSearchResult { Name = x.Value.EpisodeName, EpisodeId = x.Key, SeriesId = item.Key, Type = "Episode" }));
                 if (item.Value.Series.SeriesName.IndexOf(text, StringComparison.InvariantCultureIgnoreCase) >= 0) {
                     results.Add(new DatabaseSearchResult { Name = item.Value.Series.SeriesName, SeriesId = item.Key, Type = "Series" });
