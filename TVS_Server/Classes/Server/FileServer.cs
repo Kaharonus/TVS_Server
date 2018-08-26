@@ -44,71 +44,6 @@ namespace TVS_Server
             Log.Write("Media server stopped");
         }
 
-        private string SafeReadClient(Socket Soc) {//Safe way to read incoming requests for DLNA stream data or HTTP HEAD requests
-            try {
-                byte[] Buf = new byte[Soc.Available];
-                Soc.Receive(Buf);
-                return UTF8Encoding.UTF8.GetString(Buf);
-            } catch {; }
-            return "";
-        }
-
-        private string ContentString(long Range, string ContentType, long FileLength) {//Builds up our HTTP reply string for byte-range requests
-            string Reply = "";
-            Reply = "HTTP/1.1 206 Partial Content" + Environment.NewLine + "Server: VLC" + Environment.NewLine + "Content-Type: " + ContentType + Environment.NewLine;
-            Reply += "Accept-Ranges: bytes" + Environment.NewLine;
-            Reply += "Date: " + GMTTime(DateTime.Now) + Environment.NewLine;
-            if (Range == 0) {
-                Reply += "Content-Length: " + FileLength + Environment.NewLine;
-                Reply += "Content-Range: bytes 0-" + (FileLength - 1) + "/" + FileLength + Environment.NewLine;
-            } else {
-                Reply += "Content-Length: " + (FileLength - Range) + Environment.NewLine;
-                Reply += "Content-Range: bytes " + Range + "-" + (FileLength - 1) + "/" + FileLength + Environment.NewLine;
-            }
-            return Reply + Environment.NewLine;
-        }
-
-        private bool IsMusicOrImage(string FileName) {//We don't want to use byte-ranges for music or image data so we test the filename here
-            if (FileName.ToLower().EndsWith(".jpg") || FileName.ToLower().EndsWith(".png") || FileName.ToLower().EndsWith(".gif") || FileName.ToLower().EndsWith(".mp3"))
-                return true;
-            return false;
-        }
-
-        private string GMTTime(DateTime Time) {//Covert date to GMT time/date
-            string GMT = Time.ToString("ddd, dd MMM yyyy HH':'mm':'ss 'GMT'");
-            return GMT;//Example "Sat, 25 Jan 2014 12:03:19 GMT";
-        }
-
-
-
-        private string EncodeUrl(string Value) {//Encode requests sent to the DLNA device
-            if (Value == null) return null;
-            return Value.Replace(" ", "%20").Replace("&", "%26").Replace("'", "%27").Replace("\\", "/");
-        }
-
-        private string DecodeUrl(string Value) {//Decode request from the DLNA device
-            if (Value == null) return null;
-            return Value.Replace("%20", " ").Replace("%26", "&").Replace("%27", "'").Replace("/", "\\");
-        }
-
-        private void SendHeadData(Socket Soc, string FileName) {//This runs in the same thread as the service since it should be nice and fast
-            FileInfo FInfo = new FileInfo(FileName);
-            if (!FInfo.Exists) {//We cannot find the file so just dump the connection
-                Soc.Close();
-                this.TempClient = null;//Flag also so the next request can be serviced
-                return;
-            }
-            string ContentType = GetContentType(FileName);
-            string Reply = "HTTP/1.1 200 OK" + Environment.NewLine + "Content-Type: " + ContentType + Environment.NewLine;
-            Reply += "Date: " + GMTTime(DateTime.Now) + Environment.NewLine;
-            if (!IsMusicOrImage(FileName)) Reply += "Accept-Ranges: bytes" + Environment.NewLine;//We only do ranges for movies
-            Reply += "Content-Length: " + FInfo.Length + Environment.NewLine;
-            Reply += "Connection: close" + Environment.NewLine + Environment.NewLine;
-            Soc.Send(UTF8Encoding.UTF8.GetBytes(Reply), SocketFlags.None);
-            Soc.Close();
-            this.TempClient = null;
-        }
-
         private void Listen() {//This is the main service that waits for bew incoming request and then service the requests on another thread in most cases
             SocServer = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             IPEndPoint IPE = new IPEndPoint(IPAddress.Parse(this.IP), this.Port);
@@ -125,82 +60,19 @@ namespace TVS_Server
                     MS.Write(Buf, 0, Size);
                     string Request = UTF8Encoding.UTF8.GetString(MS.ToArray());
                     if (Request.ToUpper().StartsWith("GET /") && Request.ToUpper().IndexOf("HTTP/1.") > -1) {
-                        bool HasRange = false;
                         TempFileName = "";
                         var requestedFile = Request.ChopOffBefore("GET /").ChopOffAfter("HTTP/1.").Trim();
                         if (FileDictionary.ContainsKey(requestedFile)) {
                             TempFileName = FileDictionary[requestedFile];
                         }
                         TempFileName = DecodeUrl(TempFileName);
-                        if (Request.ToLower().IndexOf("range: ") > -1) {
-                            HasRange = true;//We can stream this if it's a movie using ranges
-                            string Range = Request.ToLower().ChopOffBefore("range: ").ChopOffAfter("-").ChopOffAfter(Environment.NewLine).Replace("bytes=", "");
-                            long.TryParse(Range, out TempRange);
-                        } else
-                            TempRange = 0;
-                        if (!HasRange || TempFileName.ToLower().EndsWith(".jpg") || TempFileName.ToLower().EndsWith(".png") || TempFileName.ToLower().EndsWith(".gif") || TempFileName.ToLower().EndsWith(".mp3")) {
-                            Thread THSend = new Thread(SendFile);
-                            THSend.Start();
-                        } else {//Movies need to be streamed for best results if they use a byte-range
-                            Thread THStream = new Thread(StreamMovie);
-                            THStream.Start();
-                        }
-                    } else
+                        Thread THStream = new Thread(StreamMovie);
+                        THStream.Start();
+                    } else {
                         TempClient.Close();
+                    }
                 } catch { }
             }
-        }
-
-        private void SendFile() {//Here we just send the file without using ranges and this function runs in it's own thread
-            FileStream FSFile = null;
-            long ChunkSize = 50000;
-            long BytesSent = 0;
-            string FileName = TempFileName.ToLower();
-            string ContentType = GetContentType(FileName);
-            Socket Client = this.TempClient;
-            this.TempClient = null;//Server is ready to recive more requests now
-            if (!File.Exists(FileName)) { Client.Close(); return; }
-            ClientCount++;
-            FileInfo FInfo = new FileInfo(FileName);
-            if (FInfo.Length > 8000000)
-                ChunkSize = 500000;//Looks big like a movie so increase the chunk size
-            string Reply = "HTTP/1.1 200 OK" + Environment.NewLine + "Content-Type: " + ContentType + Environment.NewLine;
-            Reply += "Connection: close" + Environment.NewLine;
-            Reply += "Content-Length: " + FInfo.Length + Environment.NewLine + Environment.NewLine;
-            if (LastFileName != FileName || FS == null)//Should use a lock here but i will risk it
-            {
-                FSFile = new FileStream(FileName, FileMode.Open);//needs work incase open by another request and locked
-                LastFileName = FileName;
-            } else {
-                FSFile = FS;
-                FS.Seek(0, SeekOrigin.Begin);
-            }
-            Client.Send(UTF8Encoding.UTF8.GetBytes(Reply), SocketFlags.None);
-            while (this.IsRunning && Client.Connected && ChunkSize > 0) {//Keep looping untill all the data is sent or the connection is dropped by the client
-                LoopCount++;
-                if (BytesSent + ChunkSize > FInfo.Length)
-                    ChunkSize = FInfo.Length - BytesSent;
-                byte[] Buf = new byte[ChunkSize];
-
-                if (Client.Connected) {
-                    try { FSFile.Read(Buf, 0, Buf.Length); Client.Send(Buf); } catch { ChunkSize = 0; }//Will force exit of the loop
-                }
-                BytesSent += Buf.Length;
-                if (ChunkSize > 0) Thread.Sleep(100);
-            }
-            ClientCount--;
-            FSFile.Close();
-            Client.Close();
-        }
-
-        private string GetContentType(string FileName) {//Based on the file type we create our content type for the reply to the TV/DLNA device
-            string ContentType = "audio/mpeg";
-            if (FileName.ToLower().EndsWith(".jpg")) ContentType = "image/jpg";
-            else if (FileName.ToLower().EndsWith(".png")) ContentType = "image/png";
-            else if (FileName.ToLower().EndsWith(".gif")) ContentType = "image/gif";
-            else if (FileName.ToLower().EndsWith(".avi")) ContentType = "video/avi";
-            if (FileName.ToLower().EndsWith(".mp4")) ContentType = "video/mp4";
-            return ContentType;
         }
 
         private void StreamMovie() {//Streams a movie using ranges and runs on it's own thread
@@ -210,7 +82,7 @@ namespace TVS_Server
             long BytesSent = 0;
             long ByteToSend = 1;
             string FileName = TempFileName.ToLower();
-            string ContentType = GetContentType(FileName);
+            string ContentType = "video/" + Path.GetExtension(FileName).Replace(".", "");
             Socket Client = this.TempClient;
             var client = ((IPEndPoint)Client.RemoteEndPoint).Address.ToString() + ":" + ((IPEndPoint)Client.RemoteEndPoint).Port;
             Clients.Add(client);
@@ -250,5 +122,33 @@ namespace TVS_Server
             Clients.Remove(client);
             ClientCount--;
         }
+
+
+        private string ContentString(long Range, string ContentType, long FileLength) {//Builds up our HTTP reply string for byte-range requests
+            string Reply = "";
+            Reply = "HTTP/1.1 206 Partial Content" + Environment.NewLine + "Server: TVS_Player" + Environment.NewLine + "Content-Type: " + ContentType + Environment.NewLine;
+            Reply += "Accept-Ranges: bytes" + Environment.NewLine;
+            Reply += "Date: " + GMTTime(DateTime.Now) + Environment.NewLine;
+            if (Range == 0) {
+                Reply += "Content-Length: " + FileLength + Environment.NewLine;
+                Reply += "Content-Range: bytes 0-" + (FileLength - 1) + "/" + FileLength + Environment.NewLine;
+            } else {
+                Reply += "Content-Length: " + (FileLength - Range) + Environment.NewLine;
+                Reply += "Content-Range: bytes " + Range + "-" + (FileLength - 1) + "/" + FileLength + Environment.NewLine;
+            }
+            return Reply + Environment.NewLine;
+        }
+
+        private string GMTTime(DateTime Time) {//Covert date to GMT time/date
+            string GMT = Time.ToString("ddd, dd MMM yyyy HH':'mm':'ss 'GMT'");
+            return GMT;//Example "Sat, 25 Jan 2014 12:03:19 GMT";
+        }
+
+        private string DecodeUrl(string Value) {//Decode request from the DLNA device
+            if (Value == null) return null;
+            return Value.Replace("%20", " ").Replace("%26", "&").Replace("%27", "'").Replace("/", "\\");
+        }
+
+    
     }
 }

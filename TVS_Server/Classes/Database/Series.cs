@@ -12,7 +12,7 @@ namespace TVS_Server {
     public class Series {
         public int Id { get; set; }
         public string SeriesName { get; set; }
-        public List<string> aliases = new List<string>();
+        public List<string> Aliases { get; set; } = new List<string>();
         [PrivateData]
         public string Banner { get; set; }
         public string Status { get; set; }
@@ -122,7 +122,7 @@ namespace TVS_Server {
                     using (var sr = new StreamReader(response.GetResponseStream())) {
                         JObject jObject = JObject.Parse(sr.ReadToEnd());
                         Series series = jObject["data"].ToObject<Series>();
-                        series.aliases = series.GetAliases(series.aliases);
+                        series.Aliases = series.GetAliases(series.Aliases);
                         return series;
                     }
                 } catch (Exception) {

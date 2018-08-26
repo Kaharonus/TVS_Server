@@ -406,9 +406,9 @@ namespace TVS_Server
             List<DatabaseSearchResult> results = new List<DatabaseSearchResult>();
             foreach (var item in Data) {
                 var eps = item.Value.Episodes.Where(x => Helper.ParseDate(x.Value.FirstAired) <= DateTime.Now && x.Value.EpisodeName.IndexOf(text, StringComparison.InvariantCultureIgnoreCase) >= 0).ToList();
-                eps.ForEach(x => results.Add(new DatabaseSearchResult { Name = x.Value.EpisodeName, EpisodeId = x.Key, Id = item.Key, Type = "Episode" }));
+                eps.ForEach(x => results.Add(new DatabaseSearchResult { Name = x.Value.EpisodeName, EpisodeId = x.Key, SeriesId = item.Key, Type = "Episode" }));
                 if (item.Value.Series.SeriesName.IndexOf(text, StringComparison.InvariantCultureIgnoreCase) >= 0) {
-                    results.Add(new DatabaseSearchResult { Name = item.Value.Series.SeriesName, Id = item.Key, Type = "Series" });
+                    results.Add(new DatabaseSearchResult { Name = item.Value.Series.SeriesName, SeriesId = item.Key, Type = "Series" });
                 }
             }
             return results;

@@ -46,8 +46,10 @@ namespace TVS_Server
                                 HandleApi(context);
                                 break;
                             case "file":
+                                await HandleFile(context);
+                                break;
                             case "image":
-                                await HandleData(context);
+                                await HandleImage(context);
                                 break;
                             case "register":
                                 HandleUser(context, true);
@@ -85,21 +87,34 @@ namespace TVS_Server
             }
         }
 
-        private async Task HandleData(HttpListenerRequestEventArgs context) {
+        private async Task HandleImage(HttpListenerRequestEventArgs context) {
+            if (context.Request.HttpMethod.ToLower() == "get") {
+                var str = await Api.Images.GetStream(context.Request.Url);
+                if (str != Stream.Null) {
+                    await HandleReturn(context, str);
+                } else {
+                    HandleNotFound(context);
+                }
+            } else {
+                HandleMethodNotAllowed(context);
+            }
+        }
+
+        private async Task HandleFile(HttpListenerRequestEventArgs context) {
             if (Servers.FileServer.IsRunning) {
                 if (context.Request.HttpMethod.ToLower() == "get") {
-                    var type = context.Request.Url.Segments[1].Replace("/", "").ToLower();
-                    if (Api.Files.GetRedirectUrl(context.Request.Url, type, out string url)) {
-                        await context.Response.RedirectAsync(new Uri(url));
-                    } else {
-                        HandleNotFound(context);
+                    var file = Api.Files.GetFile(context.Request.Url);
+                    if (file != default && file.FileType == "Video") {
+                        await context.Response.RedirectAsync(Api.Files.GetRedirectUrl(file));
+                    }else if (file != default && file.FileType == "Subtitle") {
+                        HandleReturn(context, await Api.Files.ReturnSubitile(file));
                     }
                 } else {
                     HandleMethodNotAllowed(context);
                 }
             } else {
                 HandleError(context, 500, "Server for file transfer is not running");
-                Log.Write("Error: " + context.Request.RemoteEndpoint.Address.ToString() + " request a file, but the server is not running");
+                Log.Write("Error: " + context.Request.RemoteEndpoint.Address + " request a file, but the server is not running");
             }
         }
 
@@ -113,7 +128,7 @@ namespace TVS_Server
                         HandleWrongJson(context);
                         return;
                     }
-                    var databaseUser = Users.GetUsers().Values.Where(x => x.UserName.ToLower() == user.Username.ToLower()).FirstOrDefault();
+                    var databaseUser = Users.GetUsers().Values.FirstOrDefault(x => x.UserName.ToLower() == user.Username.ToLower());
                     if (databaseUser != null) {
                         if (register) {
                             HandleError(context, 401, "Username is already in use.");
@@ -146,7 +161,7 @@ namespace TVS_Server
                 "\"GitHub\":\"https://github.com/Kaharonus/TVS_Server\",\n" +
                 "\"Discription\":\"TVS_Server is a server for a client called TVSPlayer. It's use is to manage library of TV series/shows. Written in .Net Core with Avalonia UI. \",\n" +
                 "\"ServerTime\":\"" + DateTime.UtcNow.ToString("o") + "\",\n" +
-                "\"Version\":\"Unstable_Develop\"\n" +
+                "\"Version\":\"Develop\"\n" +
                 "}";
             HandleReturn(context, response);
         }
@@ -163,6 +178,14 @@ namespace TVS_Server
                 }
             }
             return false;
+        }
+
+        private async Task HandleReturn(HttpListenerRequestEventArgs context, Stream input) {
+            context.Response.OutputStream.Position = 0;
+            await input.CopyToAsync(context.Response.OutputStream);
+            context.Response.StatusCode = 200;
+            input.Close();
+            context.Response.Close();
         }
 
         private void HandleReturn(HttpListenerRequestEventArgs context,string input) {
@@ -197,7 +220,9 @@ namespace TVS_Server
 
         private void HandleInternalError(HttpListenerRequestEventArgs context) {
             context.Response.InternalServerError();
-            context.Response.Close();
+            try {
+                context.Response.Close();
+            } catch { }
         }
 
         class UserRequest {

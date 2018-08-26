@@ -7,6 +7,9 @@ using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
 using System.IO;
 using System.Diagnostics;
+using System.Net;
+using System.Threading.Tasks;
+using NReco.VideoConverter;
 
 namespace TVS_Server {
     class Api {
@@ -16,32 +19,37 @@ namespace TVS_Server {
         /// </summary>
         private static Dictionary<string, object> FilterPrivateData(object obj) {
             var result = new Dictionary<string, object>();
-            var properties = obj.GetType().GetProperties();         
-            var list = properties.Where(x => x.GetCustomAttributes().Count() == 0).ToList();     
+            var properties = obj.GetType().GetProperties();
+            var list = properties.Where(x => x.GetCustomAttributes().Count() == 0).ToList();
             foreach (var property in list) {
-                result.Add(property.Name,property.GetValue(obj));
+                result.Add(property.Name, property.GetValue(obj));
             }
+
             return result;
         }
 
         /// <summary>
         /// Loads public static properties of any type into List of Tupples.
         /// </summary>
-        private static List<(string name, MethodInfo method ,Dictionary<string, Type> args)> LoadMethods(Type type) {
+        private static List<(string name, MethodInfo method, Dictionary<string, Type> args)> LoadMethods(Type type) {
             var result = new List<(string name, MethodInfo method, Dictionary<string, Type> args)>();
             foreach (var item in type.GetMethods(BindingFlags.Public | BindingFlags.Static)) {
-                (string name, MethodInfo method, Dictionary<string, Type> args) method = (item.Name.ToLower(), item, new Dictionary<string, Type>());
+                (string name, MethodInfo method, Dictionary<string, Type> args) method = (item.Name.ToLower(), item,
+                    new Dictionary<string, Type>());
                 foreach (var par in item.GetParameters()) {
                     method.args.Add(par.Name.ToLower(), par.ParameterType);
                 }
+
                 result.Add(method);
             }
+
             return result;
         }
 
         public class Get {
 
-            public static List<(string name, MethodInfo method ,Dictionary<string,Type> args)> Methods = LoadMethods(typeof(GetOptions));
+            public static List<(string name, MethodInfo method, Dictionary<string, Type> args)> Methods =
+                LoadMethods(typeof(GetOptions));
 
             public static string Response(Uri request, User user) {
                 if (request.Segments.Count() == 3) {
@@ -53,15 +61,23 @@ namespace TVS_Server {
                             paramQuery.Add(parts[0].ToLower(), parts[1]);
                         }
                     }
+
                     var methods = Methods.Where(x => x.name == requestedMethod).ToList();
                     foreach (var method in methods) {
-                        var args = method.args.WithoutLast().ToDictionary(x=>x.Key,x=>x.Value);
-                        if (args.Keys.All(x => paramQuery.Keys.Contains(x)) && args.Keys.Count == paramQuery.Keys.Count && args.All(x => x.Value == typeof(int) ? Int32.TryParse((string)paramQuery[x.Key], out int r) : true)) {
+                        var args = method.args.WithoutLast().ToDictionary(x => x.Key, x => x.Value);
+                        if (args.Keys.All(x => paramQuery.Keys.Contains(x)) &&
+                            args.Keys.Count == paramQuery.Keys.Count && args.All(x =>
+                                x.Value == typeof(int)
+                                    ? Int32.TryParse((string) paramQuery[x.Key], out int r)
+                                    : true)) {
                             paramQuery.Add("user", user);
                             List<object> obj = new List<object>();
                             foreach (var item in method.args) {
-                                obj.Add(item.Value == typeof(int) ? Int32.Parse((string)paramQuery[item.Key.ToLower()]) : paramQuery[item.Key.ToLower()]);
+                                obj.Add(item.Value == typeof(int)
+                                    ? Int32.Parse((string) paramQuery[item.Key.ToLower()])
+                                    : paramQuery[item.Key.ToLower()]);
                             }
+
                             var result = method.method.Invoke(null, obj.ToArray());
                             if (result != null) {
                                 return JsonConvert.SerializeObject(result);
@@ -70,6 +86,7 @@ namespace TVS_Server {
                     }
 
                 }
+
                 return null;
             }
 
@@ -82,22 +99,27 @@ namespace TVS_Server {
                     foreach (var series in Database.GetSeries()) {
                         result.Add(EditSeries(series, user));
                     }
+
                     return result;
                 }
 
-                public static object GetSeries(int seriesId, User user) => EditSeries(Database.GetSeries(seriesId), user);
+                public static object GetSeries(int seriesId, User user) =>
+                    EditSeries(Database.GetSeries(seriesId), user);
 
                 private static Dictionary<string, object> EditSeries(Series series, User user) {
                     if (series.Id != 0) {
                         if (user.SelectedPoster.ContainsKey(series.Id)) {
-                            series.URL = "/image/" + user.SelectedPoster[series.Id];
-                        } else {
+                            series.URL = "/image/poster/" + user.SelectedPoster[series.Id];
+                        }
+                        else {
                             user.SelectedPoster.Add(series.Id, Database.GetDefaultPosterId(series.Id));
                             Users.SetUser(user.Id, user);
                             series.URL = "/image/poster/" + user.SelectedPoster[series.Id];
                         }
+
                         return FilterPrivateData(series);
-                    } else {
+                    }
+                    else {
                         return null;
                     }
                 }
@@ -107,6 +129,7 @@ namespace TVS_Server {
                     foreach (var series in Series.Search(query).GetAwaiter().GetResult()) {
                         result.Add(FilterPrivateData(series));
                     }
+
                     return result;
                 }
 
@@ -114,21 +137,24 @@ namespace TVS_Server {
 
                 #region Episodes
 
-                public static object GetEpisodes(int seriesId,User user) {
+                public static object GetEpisodes(int seriesId, User user) {
                     List<object> result = new List<object>();
                     foreach (var episode in Database.GetEpisodes(seriesId)) {
                         result.Add(EditEpisode(episode, seriesId, user));
                     }
+
                     return result;
                 }
 
-                public static object GetEpisode(int seriesId, int episodeId, User user) => EditEpisode(Database.GetEpisode(seriesId, episodeId, true), seriesId, user);
+                public static object GetEpisode(int seriesId, int episodeId, User user) =>
+                    EditEpisode(Database.GetEpisode(seriesId, episodeId, true), seriesId, user);
 
-                private static Dictionary<string, object> EditEpisode(Episode episode,int seriesId, User user) {
+                private static Dictionary<string, object> EditEpisode(Episode episode, int seriesId, User user) {
                     if (episode.Id != 0) {
                         episode.URL = "/image/episode/" + seriesId + "/" + episode.Id;
                         return FilterPrivateData(episode);
-                    } else {
+                    }
+                    else {
                         return null;
                     }
                 }
@@ -136,11 +162,13 @@ namespace TVS_Server {
                 #endregion
 
                 #region Actor
-                public static object GetActors(int seriesId ,User user) {
+
+                public static object GetActors(int seriesId, User user) {
                     List<object> result = new List<object>();
                     foreach (var actor in Database.GetActors(seriesId)) {
                         result.Add(EditActor(actor, user));
                     }
+
                     return result;
                 }
 
@@ -150,7 +178,8 @@ namespace TVS_Server {
                     if (actor.Id != 0) {
                         actor.URL = "/image/actor/" + actor.Id;
                         return FilterPrivateData(actor);
-                    } else {
+                    }
+                    else {
                         return null;
                     }
                 }
@@ -158,21 +187,25 @@ namespace TVS_Server {
                 #endregion
 
                 #region Posters
+
                 public static object GetPosters(int seriesId, User user) {
                     List<object> result = new List<object>();
                     foreach (var poster in Database.GetPosters(seriesId)) {
                         result.Add(EditPoster(poster, user));
                     }
+
                     return result;
                 }
 
-                public static object GetPoster(int posterId, User user) => EditPoster(Database.GetPoster(posterId), user);
+                public static object GetPoster(int posterId, User user) =>
+                    EditPoster(Database.GetPoster(posterId), user);
 
                 private static Dictionary<string, object> EditPoster(Poster poster, User user) {
                     if (poster.Id != 0) {
                         poster.URL = "/image/poster/" + poster.Id;
                         return FilterPrivateData(poster);
-                    } else {
+                    }
+                    else {
                         return null;
                     }
                 }
@@ -181,11 +214,12 @@ namespace TVS_Server {
 
                 #region Files
 
-                public static object GetFiles(int episodeId,User user) {
+                public static object GetFiles(int episodeId, User user) {
                     List<object> result = new List<object>();
                     foreach (var file in Database.GetFiles(episodeId)) {
                         result.Add(EditFile(file, user));
                     }
+
                     return result;
                 }
 
@@ -195,8 +229,10 @@ namespace TVS_Server {
                         if (timestamp != default) {
                             file.TimeStamp = timestamp.ToString();
                         }
+
                         return FilterPrivateData(file);
-                    } else {
+                    }
+                    else {
                         return null;
                     }
                 }
@@ -204,49 +240,138 @@ namespace TVS_Server {
                 #endregion
 
                 public static object Search(string query, User user) {
-                    return Database.SearchDatabase(query.Replace("+"," "));
+                    return Database.SearchDatabase(query.Replace("+", " "));
                 }
             }
-            
-        }
-        
-
-        public class Post {
 
         }
+
+        public class Post { }
 
         public class Files {
-            public static bool GetRedirectUrl(Uri request, string type, out string url) {
-                string fileName = url = "";
-                if (type == "file") {
-                    List<string> segments = new List<string>();
-                    foreach (var item in request.Segments) {
-                        var temp = item.Replace("/", "");
-                        if(temp.Length > 0) {
-                            segments.Add(temp);
-                        }
-                    }
-                    if (segments.Count == 3 && Int32.TryParse(segments[1], out int episodeId) && Int32.TryParse(segments[2], out int id)) {
-                        var file = Database.GetFile(episodeId, id);
-                        if(file != default) {
-                            fileName = file.NewName;
-                        }
-                    }
-                } else {
+            public static Uri GetRedirectUrl(DatabaseFile file) {
+                var fileName = file.NewName;
+                string hash = Helper.HashString16(fileName);
+                if (!FileServer.FileDictionary.ContainsKey(hash)) {
+                    FileServer.FileDictionary.Add(hash, fileName);
                 }
-                if (!String.IsNullOrEmpty(fileName)) {
-                    string hash = Helper.HashString16(fileName);
-                    if (!FileServer.FileDictionary.ContainsKey(hash)) {
-                        FileServer.FileDictionary.Add(hash, fileName);
-                    }
-                    url = "http://" + Servers.FileServer.IP + ":" + Servers.FileServer.Port + "/" + hash;
-                    return true; 
-                }
-                return false;
+
+                return new Uri("http://" + Servers.FileServer.IP + ":" + Servers.FileServer.Port + "/" + hash);
             }
 
+            public static DatabaseFile GetFile(Uri request) {
+                List<string> segments = request.Segments.Select(item => item.Replace("/", ""))
+                    .Where(temp => temp.Length > 0).ToList();
+                if (segments.Count == 3 && int.TryParse(segments[1], out int episodeId) &&
+                    int.TryParse(segments[2], out int id)) {
+                    return Database.GetFile(episodeId, id);
+                }
+
+                return default;
+            }
+
+            public static async Task<string> ReturnSubitile(DatabaseFile file) {
+                return File.Exists(file.NewName) ? await File.ReadAllTextAsync(file.NewName) : "";
+            }
 
         }
 
+        public class Images {
+
+            private static readonly string DataPath = Database.DatabasePath + "\\Data\\Images\\";
+
+            public static async Task<Stream> GetStream(Uri request) {
+                List<string> segments = request.Segments.Select(item => item.Replace("/", ""))
+                    .Where(temp => temp.Length > 0).ToList();
+                if (segments.Count != 3 && segments.Count != 4) return Stream.Null;
+                switch (segments[1]) {
+                    case "poster":
+                        if (int.TryParse(segments[2], out int posterId)) {
+                            var poster = Database.GetPoster(posterId);
+                            if (poster != default) {
+                                return await LoadPosterImage(poster);
+                            }
+                        }
+                        break;
+                    case "actor":
+                        if (int.TryParse(segments[2], out int actorId)) {
+                            var poster = Database.GetActor(actorId);
+                            if (poster != default) {
+                                return await LoadActorImage(poster);
+                            }
+                        }
+                        break;
+                    case "episode":
+                        if (int.TryParse(segments[3], out int seriesId) && int.TryParse(segments[4], out int episodeId)) {
+                            var poster = Database.GetEpisode(seriesId, episodeId, true);
+                            if (poster != default) {
+                                return await LoadEpisodeImage(poster);
+                            }
+                        }
+                        break;
+                    default:
+                        return Stream.Null;
+                }
+                return Stream.Null;
+            }
+
+            private static async Task<Stream> LoadPosterImage(Poster poster) {
+                var fileName = DataPath + poster.Id + ".png";
+                if (File.Exists(fileName)) {
+                    return File.OpenRead(fileName);
+                }
+                var stream = await GetStreamResponse(poster.FileName);
+                await WriteToFile(stream, fileName);
+                return stream;
+            }
+
+            private static async Task<Stream> LoadActorImage(Actor actor) {
+                var fileName = DataPath + actor.Id + ".png";
+                if (File.Exists(fileName)) {
+                    return File.OpenRead(fileName);
+                }
+                var stream = await GetStreamResponse(actor.Image);
+                await WriteToFile(stream, fileName);
+                return stream;
+            }
+            private static async Task<Stream> LoadEpisodeImage(Episode episode) {
+                var fileName = DataPath + episode.Id + ".png";
+                if (File.Exists(fileName)) {
+
+                    return File.OpenRead(fileName);
+                }
+                if (!string.IsNullOrEmpty(episode.Filename)) {
+                    var stream = await GetStreamResponse(episode.Filename);
+                    await WriteToFile(stream, fileName);
+                    return stream;
+                }
+                var result = Database.GetFiles(episode.Id).FirstOrDefault(x => x.FileType == "Video");
+                if (result != default) {
+                    MemoryStream ms = new MemoryStream();
+                    var ffmpeg = new FFMpegConverter();
+                    ffmpeg.GetVideoThumbnail(fileName,ms);
+                    await WriteToFile(ms,fileName);
+                    return ms;
+                }
+                return Stream.Null;
+            }
+
+            private static async Task WriteToFile(Stream stream, string fileName) {
+                using (var fileStream = File.OpenWrite(fileName)) {
+                    await stream.CopyToAsync(fileStream);
+                }
+            }
+
+            private static async Task<Stream> GetStreamResponse(string url) {
+                WebRequest request = WebRequest.CreateHttp("https://www.thetvdb.com/banners/" + url);
+                using (var response = await request.GetResponseAsync()) {
+                    Stream memoryStream = new MemoryStream();
+                    await (response.GetResponseStream()).CopyToAsync(memoryStream);
+                    memoryStream.Position = 0;
+                    return memoryStream;
+                }
+
+            }
+        }
     }
 }

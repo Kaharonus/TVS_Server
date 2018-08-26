@@ -121,7 +121,7 @@ namespace TVS_Server{
                 result = (Int32.Parse(special.Value.Substring(0, 2)), Int32.Parse(special.Value.Substring(3, 2)));
             }
             if (result != (-1, -1)) {
-                var ep = Database.GetEpisodes(file.SeriesId).Where(x=>x.AiredEpisodeNumber == result.episode && x.AiredSeason == result.season).FirstOrDefault();
+                var ep = Database.GetEpisodes(file.SeriesId).FirstOrDefault(x => x.AiredEpisodeNumber == result.episode && x.AiredSeason == result.season);
                 if (ep != null) {
                     episodeId = ep.Id;
                     return true;
@@ -197,7 +197,7 @@ namespace TVS_Server{
         }
 
         private static bool CheckAliases(DatabaseFile file, Series series) {
-            foreach (string alias in series.aliases) {
+            foreach (string alias in series.Aliases) {
                 string temp = alias.ToUpper();
                 if (
                     Path.GetFileName(file.OldName.ToUpper()).StartsWith(temp) ||

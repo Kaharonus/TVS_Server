@@ -3,9 +3,12 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.27703.2018
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TVS_Server", "TVS_Server\TVS_Server.csproj", "{0E7A4437-BF6E-4450-9301-661D51BFDF6B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TVS_Server", "TVS_Server\TVS_Server.csproj", "{0E7A4437-BF6E-4450-9301-661D51BFDF6B}"
 EndProject
 Global
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
@@ -21,5 +24,8 @@ Global
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {C6DB0DFB-785E-4B68-9991-3D03792A41B5}
+	EndGlobalSection
+	GlobalSection(Performance) = preSolution
+		HasPerformanceSessions = true
 	EndGlobalSection
 EndGlobal

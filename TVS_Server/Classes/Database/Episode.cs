@@ -30,7 +30,7 @@ namespace TVS_Server {
         public double SiteRating { get; set; }
         public int? SiteRatingCount { get; set; }
 
-        [PrivateData]
+
         public bool FullInfo { get; set; } = false;
         public string URL { get; set; }
         /// <summary>

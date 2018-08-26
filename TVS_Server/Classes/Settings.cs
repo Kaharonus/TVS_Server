@@ -21,6 +21,7 @@ namespace TVS_Server
         private static int _fileServerPort;
         private static DateTime _tokenTimestamp;
         private static DateTime _databaseUpdateTime;
+        private static bool _saveRam;
 
         private static bool _setupComplete = false;
 
@@ -80,6 +81,7 @@ namespace TVS_Server
         /// </summary>
         public static int DataServerPort { get => _dataServerPort; set { _dataServerPort = value; SaveSettings(); } }
 
+        public static bool SaveRam {get => _saveRam; set { _saveRam = value; SaveSettings(); } }
 
 
         /// <summary>

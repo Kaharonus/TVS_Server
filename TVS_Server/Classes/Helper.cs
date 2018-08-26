@@ -18,7 +18,7 @@ namespace TVS_Server {
     class Helper {
 
         public static string HashString16(string input) {
-            const string chars = "0123456789abcdefghijklmnopqerstuvwxyz";
+            const string chars = "0123456789abcdefghijklmnopqrstuvwxyz";
             byte[] bytes = Encoding.UTF8.GetBytes(input);
             SHA256Managed hashstring = new SHA256Managed();
             byte[] hash = hashstring.ComputeHash(bytes);
@@ -122,21 +122,20 @@ namespace TVS_Server {
             if (ip == GetMyIP()) {
                 return NetworkInterface.GetAllNetworkInterfaces().Single(x => x.GetIPProperties().UnicastAddresses.Where(y => y.Address.ToString() == ip).Count() > 0).GetPhysicalAddress().ToString();
             } else {
-                Process pProcess = new Process();
-                pProcess.StartInfo.FileName = "arp";
-                pProcess.StartInfo.Arguments = "-a ";
-                pProcess.StartInfo.UseShellExecute = false;
-                pProcess.StartInfo.RedirectStandardOutput = true;
-                pProcess.StartInfo.CreateNoWindow = true;
+                Process pProcess = new Process {
+                    StartInfo = {
+                        FileName = "arp",
+                        Arguments = "-a ",
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        CreateNoWindow = true
+                    }
+                };
                 pProcess.Start();
                 string cmdOutput = pProcess.StandardOutput.ReadToEnd();
                 string pattern = @"(?<ip>([0-9]{1,3}\.?){4})\s*(?<mac>([a-f0-9]{2}-?){6})";
-                var result = Regex.Matches(cmdOutput, pattern, RegexOptions.IgnoreCase).Cast<Match>().Where(x => x.Groups["ip"].Value == ip).FirstOrDefault();
-                if (result != null) {
-                    return result.Groups["mac"].Value.ToUpper().Replace("-", "");
-                } else {
-                    return "";
-                }
+                var result = Regex.Matches(cmdOutput, pattern, RegexOptions.IgnoreCase).Cast<Match>().FirstOrDefault(x => x.Groups["ip"].Value == ip);
+                return result != null ? result.Groups["mac"].Value.ToUpper().Replace("-", "") : "";
             }
 
         }
@@ -174,7 +173,7 @@ namespace TVS_Server {
             }
         }
 
-        public async static Task WaitAll(this IEnumerable<Task> tasks) {
+        public static async Task WaitAll(this IEnumerable<Task> tasks) {
             await Task.Run(() => Task.WaitAll(tasks.ToArray()));
         }
 
@@ -184,34 +183,27 @@ namespace TVS_Server {
             }
         }
 
-        public static string ChopOffBefore(this string s, string Before) {
-            int End = s.ToUpper().IndexOf(Before.ToUpper());
-            if (End > -1) {
-                return s.Substring(End + Before.Length);
-            }
-            return s;
+        public static string ChopOffBefore(this string s, string before) {
+            int end = s.ToUpper().IndexOf(before.ToUpper());
+            return end > -1 ? s.Substring(end + before.Length) : s;
         }
 
-        public static string ChopOffAfter(this string s, string After) {
-            int End = s.ToUpper().IndexOf(After.ToUpper());
-            if (End > -1) {
-                return s.Substring(0, End);
-            }
-            return s;
+        public static string ChopOffAfter(this string s, string after) {
+            int end = s.ToUpper().IndexOf(after.ToUpper());
+            return end > -1 ? s.Substring(0, end) : s;
         }
 
-        public static string ReplaceIgnoreCase(this string Source, string Pattern, string Replacement) {// using \\$ in the pattern will screw this regex up
+        public static string ReplaceIgnoreCase(this string source, string pattern, string replacement) {// using \\$ in the pattern will screw this regex up
                                                                                                         //return Regex.Replace(Source, Pattern, Replacement, RegexOptions.IgnoreCase);
 
-            if (Regex.IsMatch(Source, Pattern, RegexOptions.IgnoreCase))
-                Source = Regex.Replace(Source, Pattern, Replacement, RegexOptions.IgnoreCase);
-            return Source;
+            if (Regex.IsMatch(source, pattern, RegexOptions.IgnoreCase))
+                source = Regex.Replace(source, pattern, replacement, RegexOptions.IgnoreCase);
+            return source;
         }
 
     }
 
-    public class PrivateData : System.Attribute {
-
+    public class PrivateData : Attribute {
     }
 
 }
