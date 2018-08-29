@@ -17,7 +17,7 @@ namespace TVS_Server
         #region static variables
         public static string DatabasePath = GetPath();
         public enum SaveType {
-            Series, Episodes, Actors, Posters, Files, All
+            Series, Episodes, Actors, Posters, Files, Background, All
         }
         #endregion
 
@@ -28,6 +28,8 @@ namespace TVS_Server
         public Dictionary<int, Episode> Episodes { get; set; } = new Dictionary<int, Episode>();
         public Dictionary<int, Actor> Actors { get; set; } = new Dictionary<int, Actor>();
         public Dictionary<int, Poster> Posters { get; set; } = new Dictionary<int, Poster>();
+        public Poster Background { get; set; } = new Poster();
+
 
         #region Get lists
 
@@ -64,6 +66,10 @@ namespace TVS_Server
 
         public static Poster GetPoster(int posterId) {
             return Data.SelectMany(x => x.Value.Posters).FirstOrDefault(x => x.Value.Id == posterId).Value ?? new Poster();
+        }
+
+        public static Poster GetBackground(int seriesId) {
+            return Data.ContainsKey(seriesId) ? Data[seriesId].Background : new Poster();
         }
 
         /*
@@ -239,12 +245,15 @@ namespace TVS_Server
                     var episodes = ReadFile(path + id + "\\Episodes.TVSData");
                     var actors = ReadFile(path + id + "\\Actors.TVSData");
                     var posters = ReadFile(path + id + "\\Posters.TVSData");
+                    var background = ReadFile(path + id + "\\Background.TVSData");
                     if (series != new JObject() && episodes != new JObject() && actors != new JObject() && posters != new JObject()) {
-                        Database database = new Database();
-                        database.Series = (Series)series.ToObject(typeof(Series));
-                        database.Episodes = (Dictionary<int, Episode>)episodes.ToObject(typeof(Dictionary<int, Episode>));
-                        database.Actors = (Dictionary<int, Actor>)actors.ToObject(typeof(Dictionary<int, Actor>));
-                        database.Posters = (Dictionary<int, Poster>)posters.ToObject(typeof(Dictionary<int, Poster>));
+                        Database database = new Database {
+                            Series = series.ToObject<Series>(),
+                            Background = background.ToObject<Poster>(),
+                            Episodes = episodes.ToObject<Dictionary<int, Episode>>(),
+                            Actors = actors.ToObject<Dictionary<int, Actor>>(),
+                            Posters = posters.ToObject<Dictionary<int, Poster>>()
+                        };
                         if (!Data.ContainsKey(id)) {
                             Data.Add(id, database);
                         }
@@ -290,11 +299,16 @@ namespace TVS_Server
                     obj = Files;
                     file = DatabasePath + "Files.TVSData";
                     break;
+                case SaveType.Background:
+                    obj = Data[seriesId].Background;
+                    file += "Background.TVSData";
+                    break;
                 case SaveType.All:
                     await SaveDatabase(seriesId, SaveType.Series);
                     await SaveDatabase(seriesId, SaveType.Episodes);
                     await SaveDatabase(seriesId, SaveType.Actors);
                     await SaveDatabase(seriesId, SaveType.Posters);
+                    await SaveDatabase(seriesId, SaveType.Background);
                     await SaveDatabase(0, SaveType.Files);
                     return;
             }
@@ -326,14 +340,17 @@ namespace TVS_Server
                     Series.GetSeries(seriesId),
                     Episode.GetEpisodes(seriesId),
                     Actor.GetActors(seriesId),
-                    Poster.GetPosters(seriesId)
+                    Poster.GetPosters(seriesId),
+                    Poster.GetFanArt(seriesId)
                 };
                 await Task.WhenAll(tasks);
                 Database db = new Database {
                     Series = ((Task<Series>)tasks[0]).Result,
                     Episodes = ((Task<List<Episode>>)tasks[1]).Result.ToDictionary(x => x.Id, x => x),
                     Actors = ((Task<List<Actor>>)tasks[2]).Result.ToDictionary(x => x.Id, x => x),
-                    Posters = ((Task<List<Poster>>)tasks[3]).Result.ToDictionary(x => x.Id, x => x)
+                    Posters = ((Task<List<Poster>>)tasks[3]).Result.ToDictionary(x => x.Id, x => x),
+                    Background = ((Task<Poster>)tasks[4]).Result
+
                 };
                 if (!String.IsNullOrEmpty(databasePath)) {
                     db.Series.LibraryPath = databasePath;

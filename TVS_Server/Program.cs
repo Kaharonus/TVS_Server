@@ -48,6 +48,12 @@ namespace TVS_Server
             Log.Write(DateTime.Now.ToShortDateString()+ ", " + DateTime.Now.ToLongTimeString()+", " + Helper.GetMyIP());
             Servers.StartDataServer();
             Servers.StartFileServer();
+            
+            
+            
+            /*foreach (var item in File.ReadAllLines(@"D:\TVSTests\test.txt")) {
+                await Database.CreateDatabase(Int32.Parse(item));
+            }*/
             //Users.CreateUser("test", "test", Helper.GetMyIP());
             /*            while (true) {
                             var list = BackgroundAction.GetActions();

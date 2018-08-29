@@ -229,10 +229,31 @@ namespace TVS_Server {
                         if (timestamp != default) {
                             file.TimeStamp = timestamp.ToString();
                         }
+                        var fileName = file.NewName;
+                        string hash = Helper.HashString16(fileName);
+                        if (!FileServer.FileDictionary.ContainsKey(hash)) {
+                            FileServer.FileDictionary.Add(hash, fileName);
+                        }
 
+                        file.URL = "http://" + Servers.FileServer.IP + ":" + Servers.FileServer.Port + "/" + hash;
                         return FilterPrivateData(file);
                     }
                     else {
+                        return null;
+                    }
+                }
+
+                #endregion
+
+                #region Background 
+
+                public static object GetBackground(int seriesId, User user) => EditBackground(Database.GetBackground(seriesId),seriesId, user);
+
+                private static Dictionary<string, object> EditBackground(Poster poster, int seriesId, User user) {
+                    if (poster.Id != 0) {
+                        poster.URL = "/image/background/" + seriesId;
+                        return FilterPrivateData(poster);
+                    } else {
                         return null;
                     }
                 }
@@ -249,15 +270,6 @@ namespace TVS_Server {
         public class Post { }
 
         public class Files {
-            public static Uri GetRedirectUrl(DatabaseFile file) {
-                var fileName = file.NewName;
-                string hash = Helper.HashString16(fileName);
-                if (!FileServer.FileDictionary.ContainsKey(hash)) {
-                    FileServer.FileDictionary.Add(hash, fileName);
-                }
-
-                return new Uri("http://" + Servers.FileServer.IP + ":" + Servers.FileServer.Port + "/" + hash);
-            }
 
             public static DatabaseFile GetFile(Uri request) {
                 List<string> segments = request.Segments.Select(item => item.Replace("/", ""))
@@ -302,10 +314,18 @@ namespace TVS_Server {
                         }
                         break;
                     case "episode":
-                        if (int.TryParse(segments[3], out int seriesId) && int.TryParse(segments[4], out int episodeId)) {
+                        if (int.TryParse(segments[2], out int seriesId) && int.TryParse(segments[3], out int episodeId)) {
                             var poster = Database.GetEpisode(seriesId, episodeId, true);
                             if (poster != default) {
                                 return await LoadEpisodeImage(poster);
+                            }
+                        }
+                        break;
+                    case "background":
+                        if (int.TryParse(segments[2], out int sId)) {
+                            var poster = Database.GetBackground(sId);
+                            if (poster != default) {
+                                return await LoadPosterImage(poster);
                             }
                         }
                         break;
@@ -316,7 +336,7 @@ namespace TVS_Server {
             }
 
             private static async Task<Stream> LoadPosterImage(Poster poster) {
-                var fileName = DataPath + poster.Id + ".png";
+                var fileName = DataPath + "Posters\\" + poster.Id + ".png";
                 if (File.Exists(fileName)) {
                     return File.OpenRead(fileName);
                 }
@@ -326,7 +346,7 @@ namespace TVS_Server {
             }
 
             private static async Task<Stream> LoadActorImage(Actor actor) {
-                var fileName = DataPath + actor.Id + ".png";
+                var fileName = DataPath + "Actors\\" +  actor.Id + ".png";
                 if (File.Exists(fileName)) {
                     return File.OpenRead(fileName);
                 }
@@ -335,7 +355,7 @@ namespace TVS_Server {
                 return stream;
             }
             private static async Task<Stream> LoadEpisodeImage(Episode episode) {
-                var fileName = DataPath + episode.Id + ".png";
+                var fileName = DataPath + "Episodes\\" + episode.Id + ".png";
                 if (File.Exists(fileName)) {
 
                     return File.OpenRead(fileName);
@@ -357,8 +377,13 @@ namespace TVS_Server {
             }
 
             private static async Task WriteToFile(Stream stream, string fileName) {
+                if (!Directory.Exists(Path.GetDirectoryName(fileName))) {
+                    Directory.CreateDirectory(Path.GetDirectoryName(fileName));
+                }
                 using (var fileStream = File.OpenWrite(fileName)) {
                     await stream.CopyToAsync(fileStream);
+                    stream.Position = 0;
+
                 }
             }
 

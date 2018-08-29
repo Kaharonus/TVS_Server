@@ -90,13 +90,28 @@ namespace TVS_Server {
                         foreach (JToken jt in jObject["data"]) {
                             list.Add(jt.ToObject<Poster>());
                         }
-                        List<Poster> sorted = list.OrderByDescending(y => y.ratingsInfo.Count).ToList();
-                        return sorted[0];
+                        return SelectFanArt(list);
                     }
                 } catch (WebException e) {
                     return new Poster();
                 }
             });
+        }
+
+        private static Poster SelectFanArt(List<Poster> posters) {
+            Dictionary<Poster, double> weighted = new Dictionary<Poster, double>();
+            if (posters.Count > 0) {
+                double minimum = posters.Select(x => x.ratingsInfo.Count).ToList().Average();
+                double totalAverage = posters.Select(x => x.ratingsInfo.Average).ToList().Average();
+                foreach (var poster in posters) {
+                    int votes = poster.ratingsInfo.Count;
+                    weighted.Add(poster, (votes / (votes + minimum)) * poster.ratingsInfo.Average / (minimum / (votes + minimum)) * totalAverage);
+                }
+                var max = weighted.Max(x => x.Value);
+                return weighted.FirstOrDefault(x => x.Value == max).Key;
+            } else {
+                return new Poster();
+            }
         }
     }
 }
