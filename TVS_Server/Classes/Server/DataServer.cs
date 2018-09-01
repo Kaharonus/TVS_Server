@@ -101,18 +101,19 @@ namespace TVS_Server
         }
 
         private async Task HandleFile(HttpListenerRequestEventArgs context) {
-            /*if (context.Request.HttpMethod.ToLower() == "get") {
+            if (context.Request.HttpMethod.ToLower() == "get") {
                 var file = Api.Files.GetFile(context.Request.Url);
                 if (file != default && file.FileType == "Video") {
-                    //context.Response.P
+                    await context.Response.RedirectAsync(Api.Files.GetUrl(file));
                 }
                 if (file != default && file.FileType == "Subtitle") {
                     HandleReturn(context, await Api.Files.ReturnSubitile(file));
                 }
             } else {
                 HandleMethodNotAllowed(context);
-            }*/
+            }
         }
+
 
             private void HandleUser(HttpListenerRequestEventArgs context, bool register) {
             if (context.Request.HttpMethod.ToLower() != "post") {

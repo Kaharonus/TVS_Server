@@ -5,17 +5,15 @@ using System.Text;
 namespace TVS_Server
 {
     class Servers{
-        public static FileServer FileServer { get; set; } = new FileServer();
+        public static MediaServer MediaServer { get; set; }
         public static DataServer DataServer { get; set; } = new DataServer();
 
         public static void StartFileServer() {
-            FileServer = new FileServer();
-            FileServer.Start();
+            MediaServer = new MediaServer("192.168.1.83",5851,@"D:\TVSTests");
+            MediaServer.Start();
         }
         public static void StopFileServer() {
-            if (FileServer != null) {
-                FileServer.Stop();
-            }
+
         }
         public static void StartDataServer() {
             DataServer = new DataServer();

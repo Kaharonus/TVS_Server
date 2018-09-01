@@ -230,12 +230,7 @@ namespace TVS_Server {
                             file.TimeStamp = timestamp.ToString();
                         }
                         var fileName = file.NewName;
-                        string hash = Helper.HashString16(fileName);
-                        if (!FileServer.FileDictionary.ContainsKey(hash)) {
-                            FileServer.FileDictionary.Add(hash, fileName);
-                        }
 
-                        file.URL = "http://" + Servers.FileServer.IP + ":" + Servers.FileServer.Port + "/" + hash;
                         return FilterPrivateData(file);
                     }
                     else {
@@ -270,6 +265,17 @@ namespace TVS_Server {
         public class Post { }
 
         public class Files {
+
+            public static Uri GetUrl(DatabaseFile file) {
+                int port = Helper.GetFreeTcpPort();
+                /*string hash = Helper.HashString16(fileName);
+                if (!FileServer.FileDictionary.ContainsKey(hash)) {
+                    FileServer.FileDictionary.Add(hash, fileName);
+                }
+
+                file.URL = "http://" + Servers.FileServer.IP + ":" + Servers.FileServer.Port + "/" + hash;*/
+                return new Uri("");
+            }
 
             public static DatabaseFile GetFile(Uri request) {
                 List<string> segments = request.Segments.Select(item => item.Replace("/", ""))

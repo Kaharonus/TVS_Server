@@ -29,6 +29,14 @@ namespace TVS_Server {
             return new string(hash2);
         }
 
+        public static int GetFreeTcpPort() {
+            TcpListener l = new TcpListener(IPAddress.Loopback, 0);
+            l.Start();
+            int port = ((IPEndPoint)l.LocalEndpoint).Port;
+            l.Stop();
+            return port;
+        }
+
         public static string HashString(string input) {
     
             using (SHA512 sha = SHA512.Create()) {
