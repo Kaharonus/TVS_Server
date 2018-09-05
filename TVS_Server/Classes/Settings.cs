@@ -18,7 +18,7 @@ namespace TVS_Server
         private static string _scanLocation2;
         private static string _scanLocation3;
         private static int _dataServerPort;
-        private static int _fileServerPort;
+        private static int _mediaServerPort;
         private static DateTime _tokenTimestamp;
         private static DateTime _databaseUpdateTime;
         private static bool _saveRam;
@@ -74,7 +74,7 @@ namespace TVS_Server
         /// <summary>
         /// Specifies port that file server will run at. Default value is 5851
         /// </summary>
-        public static int FileServerPort { get => _fileServerPort; set { _fileServerPort = value; SaveSettings(); } }
+        public static int MediaServerPort { get => _mediaServerPort; set { _mediaServerPort = value; SaveSettings(); } }
 
         /// <summary>
         /// Specifies port that data server will run at. Default value is 5850

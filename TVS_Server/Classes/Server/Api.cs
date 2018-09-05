@@ -229,8 +229,11 @@ namespace TVS_Server {
                         if (timestamp != default) {
                             file.TimeStamp = timestamp.ToString();
                         }
-                        var fileName = file.NewName;
-
+                        string hash = Helper.HashString16(file.NewName);
+                        if (!MediaServer.FileCodeDictionary.ContainsKey(hash)) {
+                            MediaServer.FileCodeDictionary.Add(hash, file.NewName);
+                        }
+                        file.URL = "http://" + Servers.MediaServer.IP + ":" + Servers.MediaServer.Port + "/" + hash;
                         return FilterPrivateData(file);
                     }
                     else {
@@ -268,12 +271,12 @@ namespace TVS_Server {
 
             public static Uri GetUrl(DatabaseFile file) {
                 int port = Helper.GetFreeTcpPort();
-                /*string hash = Helper.HashString16(fileName);
-                if (!FileServer.FileDictionary.ContainsKey(hash)) {
-                    FileServer.FileDictionary.Add(hash, fileName);
+                string hash = Helper.HashString16(file.NewName);
+                if (!MediaServer.FileCodeDictionary.ContainsKey(hash)) {
+                    MediaServer.FileCodeDictionary.Add(hash, file.NewName);
                 }
 
-                file.URL = "http://" + Servers.FileServer.IP + ":" + Servers.FileServer.Port + "/" + hash;*/
+                file.URL = "http://" + Servers.MediaServer.IP + ":" + Servers.MediaServer.Port + "/" + hash;
                 return new Uri("");
             }
 

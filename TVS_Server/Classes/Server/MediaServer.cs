@@ -8,13 +8,13 @@ using System.IO;
 
 namespace TVS_Server {
     public class MediaServer {
+
+        public static Dictionary<string, string> FileCodeDictionary { get; set; } = new Dictionary<string, string>();
         public int LoopCount = 0;//Counts the number of chunks of data that we have sent to the client DLNA device
         public int ClientCount = 0;//Count of client sockets we are serving at the current time
         public bool Running = false;//Flag set to true when running and false to kill the service
         public string IP;//The ip of this service we will listen on for DLNA requests
         public int Port;//The post we will listen on for incoming DLNA requests 
-        public string RootMovies; //Points towards the root path of your media collection
-
         private long LastFileLength = 0;
         private string LastFileName = "";//Sometimes we keep the file-stream open so need to know the name of the last file served up
         private FileStream FS = null;
@@ -24,15 +24,9 @@ namespace TVS_Server {
         private Socket TempClient = null;  //Past to the client thread ready to service the request
         private string TempFileName = "";  //Past to the client thread ready to service the request
 
-        public MediaServer(string ip, int port, string rootMovies) {//Our Contructor
-            this.IP = ip;
-            this.Port = port;
-            this.RootMovies = rootMovies;
-            if (!this.RootMovies.EndsWith("\\")) this.RootMovies += "\\";
-        }
-
         public void Start() {//Starts our DLNA service
-            if (!Directory.Exists(this.RootMovies) || this.Running) return;
+            IP = Helper.GetMyIP();
+            Port = Settings.MediaServerPort;
             this.Running = true;
             LoopCount = 0; ClientCount = 0;
             this.TH = new Thread(Listen);
@@ -81,22 +75,9 @@ namespace TVS_Server {
             return GMT;//Example "Sat, 25 Jan 2014 12:03:19 GMT";
         }
 
-        public string MakeBaseUrl(string DirectoryName) {//Helper function to make the base url thats past to the DNLA device so that it can talk to this media service
-            DirectoryName = DirectoryName.ChopOffBefore(this.RootMovies);
-            DirectoryName = EncodeUrl(DirectoryName);
-            string Url = "http://" + this.IP + ":" + this.Port + "/" + DirectoryName + "/";
-            if (Url.EndsWith("//")) return Url.Substring(0, Url.Length - 1);
-            return Url;
-        }//Returns something like http://192.168.0.10:9090/Action%20Films/
-
         private string EncodeUrl(string Value) {//Encode requests sent to the DLNA device
             if (Value == null) return null;
             return Value.Replace(" ", "%20").Replace("&", "%26").Replace("'", "%27").Replace("\\", "/");
-        }
-
-        private string DecodeUrl(string Value) {//Decode request from the DLNA device
-            if (Value == null) return null;
-            return Value.Replace("%20", " ").Replace("%26", "&").Replace("%27", "'").Replace("/", "\\");
         }
 
         private void SendHeadData(Socket Soc, string FileName) {//This runs in the same thread as the service since it should be nice and fast
@@ -132,25 +113,31 @@ namespace TVS_Server {
                 MemoryStream MS = new MemoryStream();
                 MS.Write(Buf, 0, Size);
                 string Request = UTF8Encoding.UTF8.GetString(MS.ToArray());
-                if (Request.ToUpper().StartsWith("HEAD /") && Request.ToUpper().IndexOf("HTTP/1.") > -1) {//Samsung TV
-                    string HeadFileName = RootMovies + Request.ChopOffBefore("HEAD /").ChopOffAfter("HTTP/1.").Trim().Replace("/", "\\");
-                    SendHeadData(TempClient, HeadFileName);
-                } else if (Request.ToUpper().StartsWith("GET /") && Request.ToUpper().IndexOf("HTTP/1.") > -1) {
-                    bool HasRange = false;
-                    TempFileName = this.RootMovies + Request.ChopOffBefore("GET /").ChopOffAfter("HTTP/1.").Trim();
-                    TempFileName = DecodeUrl(TempFileName);
-                    if (Request.ToLower().IndexOf("range: ") > -1) {
-                        HasRange = true;//We can stream this if it's a movie using ranges
-                        string Range = Request.ToLower().ChopOffBefore("range: ").ChopOffAfter("-").ChopOffAfter(Environment.NewLine).Replace("bytes=", "");
-                        long.TryParse(Range, out TempRange);
-                    } else
-                        TempRange = 0;
-                    if (HasRange) {
-                        Thread THStream = new Thread(StreamMovie);
-                        THStream.Start();
+                var requestUrl = Request.ChopOffBefore("GET /").ChopOffAfter("HTTP/1.").Trim();
+                if (FileCodeDictionary.ContainsKey(requestUrl)) {
+                    if (Request.ToUpper().StartsWith("HEAD /") && Request.ToUpper().IndexOf("HTTP/1.") > -1) {//Samsung TV
+                        string HeadFileName = FileCodeDictionary[requestUrl];
+                        SendHeadData(TempClient, HeadFileName);
+                    } else if (Request.ToUpper().StartsWith("GET /") && Request.ToUpper().IndexOf("HTTP/1.") > -1) {
+                        bool HasRange = false;
+                        TempFileName = FileCodeDictionary[requestUrl];
+                        if (Request.ToLower().IndexOf("range: ") > -1) {
+                            HasRange = true;//We can stream this if it's a movie using ranges
+                            string Range = Request.ToLower().ChopOffBefore("range: ").ChopOffAfter("-").ChopOffAfter(Environment.NewLine).Replace("bytes=", "");
+                            long.TryParse(Range, out TempRange);
+                        } else
+                            TempRange = 0;
+                        if (HasRange) {
+                            Thread THStream = new Thread(StreamMovie);
+                            THStream.Start();
+                        }
+                    } else {
+                        TempClient.Close();
                     }
-                } else
+                } else {
                     TempClient.Close();
+                }
+
             }
         }
 

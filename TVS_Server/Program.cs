@@ -28,7 +28,7 @@ namespace TVS_Server
             Settings.LoadSettings();
             if (Settings.DataServerPort == default) {
                 Settings.DataServerPort = 5850;
-                Settings.FileServerPort = 5851;
+                Settings.MediaServerPort = 5851;
             }
             if (Settings.DatabaseUpdateTime == default) Settings.DatabaseUpdateTime = DateTime.Now;
             await Database.LoadDatabase();

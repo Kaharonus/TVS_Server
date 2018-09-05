@@ -9,7 +9,7 @@ namespace TVS_Server
         public static DataServer DataServer { get; set; } = new DataServer();
 
         public static void StartFileServer() {
-            MediaServer = new MediaServer("192.168.1.83",5851,@"D:\TVSTests");
+            MediaServer = new MediaServer();
             MediaServer.Start();
         }
         public static void StopFileServer() {
