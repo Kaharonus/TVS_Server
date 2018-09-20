@@ -6,7 +6,6 @@ namespace TVS_Server
 {
 
     class DatabaseFile {
-        [PrivateData]
         public int Id { get; set; }
         [PrivateData]
         public string OldName { get; set; }

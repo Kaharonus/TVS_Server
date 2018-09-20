@@ -85,6 +85,7 @@ namespace TVS_Server
         public string LastLoginIP { get; set; }
         public List<UserDevice> Devices { get; set; } = new List<UserDevice>();
         public Dictionary<int, int> SelectedPoster { get; set; } = new Dictionary<int, int>();
+        public HashSet<int> FinishedEpisodes { get; set; } = new HashSet<int>();
 
         [JsonConstructor]
         public User() { }

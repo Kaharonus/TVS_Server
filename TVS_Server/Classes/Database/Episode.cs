@@ -33,6 +33,7 @@ namespace TVS_Server {
 
         public bool FullInfo { get; set; } = false;
         public string URL { get; set; }
+        public bool Finished { get; set; } = false;
         /// <summary>
         /// Requests basic information about all episodes from TVDb API
         /// </summary>

@@ -152,6 +152,7 @@ namespace TVS_Server {
                 private static Dictionary<string, object> EditEpisode(Episode episode, int seriesId, User user) {
                     if (episode.Id != 0) {
                         episode.URL = "/image/episode/" + seriesId + "/" + episode.Id;
+                        episode.Finished = user.FinishedEpisodes.Contains(episode.Id);
                         return FilterPrivateData(episode);
                     }
                     else {
@@ -225,9 +226,9 @@ namespace TVS_Server {
 
                 private static Dictionary<string, object> EditFile(DatabaseFile file, User user) {
                     if (file.Id != 0) {
-                        var timestamp = file.UserData[user.Id];
-                        if (timestamp != default) {
-                            file.TimeStamp = timestamp.ToString();
+                        var timestamp = file.UserData.FirstOrDefault(x=>x.userId == user.Id);
+                        if (timestamp != (0,0)) {
+                            file.TimeStamp = timestamp.time.ToString();
                         }
                         string hash = Helper.HashString16(file.NewName);
                         if (!MediaServer.FileCodeDictionary.ContainsKey(hash)) {
@@ -273,30 +274,28 @@ namespace TVS_Server {
                 var requestedMethod = request.Segments[2].ToLower();
                 Dictionary<string, object> json = null;
                 try {
-                    json = JsonConvert.DeserializeObject<Dictionary<string, object>>(content);
-                    var temp = json;
-                    foreach (var item in temp) {
-                        json.Remove(item.Key);
-                        json.Add(item.Key.ToLower(), item.Value);
-                    }
+                    JObject jo = JObject.Parse(content);
+                    json = jo.ToObject<Dictionary<string, object>>();
+                    json = json.ToDictionary(x => x.Key.ToLower(), x => x.Value);
                 } catch (JsonReaderException) {
                     return null;
                 }
                 var methods = Methods.Where(x => x.name == requestedMethod && x.args.Count - 1 == json.Count).ToList();
                 foreach (var method in methods) {
                     var args = method.args.WithoutLast().ToDictionary(x => x.Key, x => x.Value);
-                    if (args.Keys.All(x => json.Keys.Contains(x)) &&
-                        args.Keys.Count == json.Keys.Count && args.All(x => x.Value == typeof(int) ? Int32.TryParse((string)json[x.Key], out int r) : true)) {
+                    if (args.Keys.All(x => json.Keys.Contains(x)) 
+                        &&
+                        args.Keys.Count == json.Keys.Count 
+                        &&
+                        args.All(x => (x.Value == typeof(int) ? Int32.TryParse(json[x.Key].ToString(), out int r) : true))) {
                         json.Add("user", user);
                         List<object> obj = new List<object>();
                         foreach (var item in method.args) {
-                            obj.Add(item.Value == typeof(int) ? Int32.Parse((string)json[item.Key.ToLower()]) : json[item.Key.ToLower()]);
+                            obj.Add(item.Value == typeof(int) ? Int32.Parse(json[item.Key.ToLower()].ToString()) : json[item.Key.ToLower()]);
                         }
 
                         var result = method.method.Invoke(null, obj.ToArray());
-                        if (result != null) {
-                            return JsonConvert.SerializeObject(result);
-                        }
+                        return "Success";
                     }
                 }
                 return null;
@@ -304,17 +303,27 @@ namespace TVS_Server {
 
             public class PostOptions {
 
-                public static void SetVideoProgress(int episodeId, int fileId, double progress, User user) {
+                public static void SetEpisodeProgress(int episodeId, int fileId, double progress, User user) {
                     var file = Database.GetFile(episodeId, fileId);
                     if (file != default) {
-                        
-                        if (file.UserData.FirstOrDefault(x=>x.userId == user.Id) != default) {
+                        var userData = file.UserData.FirstOrDefault(x => x.userId == user.Id);
+                        if (userData == (0,0)) {
                             file.UserData.Add((user.Id, progress));
                         } else {
-                            file.UserData[user.Id] = (user.Id, progress);
+                            file.UserData[file.UserData.IndexOf(userData)] = (user.Id, progress);
                         }
                         Database.SetFile(episodeId, fileId, file);
                     }
+                }
+
+                public static void SetEpisodeFinished(int episodeId, int isFinished, User user) {
+                    bool contains = user.FinishedEpisodes.Contains(episodeId);
+                    if (isFinished == 0 && contains) {
+                        user.FinishedEpisodes.Remove(episodeId);
+                    } else if (isFinished == 1 && !contains) {
+                        user.FinishedEpisodes.Add(episodeId);
+                    }
+                    Users.SetUser(user.Id, user);
                 }
 
             }
