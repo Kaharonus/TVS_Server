@@ -73,7 +73,7 @@ namespace TVS_Server
             var method = context.Request.HttpMethod.ToLower();
             if (method == "get" || method == "post") {
                 if (IsAuthorized(context, out User user)) {
-                    var result = method == "get" ? Api.Get.Response(context.Request.Url, user) : "";
+                    var result = method == "get" ? Api.Get.Response(context.Request.Url, user) : Api.Post.Response(context.Request.Url, new StreamReader(context.Request.InputStream).ReadToEnd(), user);
                     if (!String.IsNullOrEmpty(result)) {
                         HandleReturn(context, result);
                     } else {

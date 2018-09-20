@@ -225,7 +225,7 @@ namespace TVS_Server {
 
                 private static Dictionary<string, object> EditFile(DatabaseFile file, User user) {
                     if (file.Id != 0) {
-                        var timestamp = file.UserData.FirstOrDefault(x => x.userId == user.Id);
+                        var timestamp = file.UserData[user.Id];
                         if (timestamp != default) {
                             file.TimeStamp = timestamp.ToString();
                         }
@@ -265,7 +265,61 @@ namespace TVS_Server {
 
         }
 
-        public class Post { }
+        public class Post {
+
+            public static List<(string name, MethodInfo method, Dictionary<string, Type> args)> Methods = LoadMethods(typeof(PostOptions));
+
+            public static string Response(Uri request, string content, User user) {
+                var requestedMethod = request.Segments[2].ToLower();
+                Dictionary<string, object> json = null;
+                try {
+                    json = JsonConvert.DeserializeObject<Dictionary<string, object>>(content);
+                    var temp = json;
+                    foreach (var item in temp) {
+                        json.Remove(item.Key);
+                        json.Add(item.Key.ToLower(), item.Value);
+                    }
+                } catch (JsonReaderException) {
+                    return null;
+                }
+                var methods = Methods.Where(x => x.name == requestedMethod && x.args.Count - 1 == json.Count).ToList();
+                foreach (var method in methods) {
+                    var args = method.args.WithoutLast().ToDictionary(x => x.Key, x => x.Value);
+                    if (args.Keys.All(x => json.Keys.Contains(x)) &&
+                        args.Keys.Count == json.Keys.Count && args.All(x => x.Value == typeof(int) ? Int32.TryParse((string)json[x.Key], out int r) : true)) {
+                        json.Add("user", user);
+                        List<object> obj = new List<object>();
+                        foreach (var item in method.args) {
+                            obj.Add(item.Value == typeof(int) ? Int32.Parse((string)json[item.Key.ToLower()]) : json[item.Key.ToLower()]);
+                        }
+
+                        var result = method.method.Invoke(null, obj.ToArray());
+                        if (result != null) {
+                            return JsonConvert.SerializeObject(result);
+                        }
+                    }
+                }
+                return null;
+            }
+
+            public class PostOptions {
+
+                public static void SetVideoProgress(int episodeId, int fileId, double progress, User user) {
+                    var file = Database.GetFile(episodeId, fileId);
+                    if (file != default) {
+                        
+                        if (file.UserData.FirstOrDefault(x=>x.userId == user.Id) != default) {
+                            file.UserData.Add((user.Id, progress));
+                        } else {
+                            file.UserData[user.Id] = (user.Id, progress);
+                        }
+                        Database.SetFile(episodeId, fileId, file);
+                    }
+                }
+
+            }
+
+        }
 
         public class Files {
 
